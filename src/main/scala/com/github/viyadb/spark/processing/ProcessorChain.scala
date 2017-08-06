@@ -1,9 +1,9 @@
 package com.github.viyadb.spark.processing
 
-import com.github.viyadb.spark.TableConfig
+import com.github.viyadb.spark.Configs.JobConf
 import org.apache.spark.sql.DataFrame
 
-class ProcessorChain(table: TableConfig.Table, chain: Seq[Processor]) extends Processor(table) {
+class ProcessorChain(config: JobConf, chain: Seq[Processor]) extends Processor(config) {
 
   val composedProcessors = chain.map(p => (df: DataFrame) => p.process(df)).reduceLeft(_ compose _)
 

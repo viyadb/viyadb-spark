@@ -1,8 +1,8 @@
 package com.github.viyadb.spark.util
 
 import org.joda.time._
-import org.json4s._
 import org.json4s.JsonAST.{JNull, JString}
+import org.json4s._
 
 /**
   * JSON serializers for Joda time classes that handles intervals better

@@ -1,14 +1,16 @@
 package com.github.viyadb.spark.streaming.message
 
-import com.github.viyadb.spark.TableConfig
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Encoders, SparkSession}
+import com.github.viyadb.spark.Configs.JobConf
+import org.apache.spark.sql.Row
 
-class TsvMessageFactory(table: TableConfig.Table) extends MessageFactory(table) {
+class TsvMessageFactory(config: JobConf) extends MessageFactory(config) {
 
-  override def createDataFrame(rdd: RDD[AnyRef]): DataFrame = {
-    val spark = SparkSession.getActiveSession.get
-    spark.read.option("delimiter", "\t").schema(schema).csv(
-      spark.createDataset(rdd.map(_.asInstanceOf[String]))(Encoders.STRING))
+  private val delimiter = parseSpec.delimiter.getOrElse("\t")
+
+  private val columnIndices = getColumnIndices()
+
+  override def createMessage(meta: String, content: String): Option[Row] = {
+    val lines = content.split(delimiter)
+    createMessage(columnIndices.map(idx => lines(idx)))
   }
 }

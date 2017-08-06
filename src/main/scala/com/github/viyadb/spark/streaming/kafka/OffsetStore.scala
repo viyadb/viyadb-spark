@@ -1,20 +1,35 @@
 package com.github.viyadb.spark.streaming.kafka
 
-import com.github.viyadb.spark.TableConfig
+import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.util.FileSystemUtil
 import kafka.common.TopicAndPartition
 import org.apache.spark.streaming.kafka.{KafkaCluster, KafkaUtils}
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Serialization.{read, write}
+
+import scala.util.Try
 
 /**
   * Saves/Loads consumer offsets
   *
-  * @param kafka Kafka source configuration
+  * @param config Kafka source configuration
   */
-abstract class OffsetStore(kafka: TableConfig.Kafka) {
+abstract class OffsetStore(config: JobConf) {
 
   @transient
   lazy val log = org.apache.log4j.Logger.getLogger(getClass)
 
   case class Offset(topic: String, partition: Int, offset: Long) extends Serializable
+
+  protected def serializeOffsets(offsets: Map[TopicAndPartition, Long]): String = {
+    implicit val formats = DefaultFormats
+    write(offsets.map(o => Offset(o._1.topic, o._1.partition, o._2)).toList)
+  }
+
+  protected def deserializeOffsets(json: String): Map[TopicAndPartition, Long] = {
+    implicit val formats = DefaultFormats
+    read[List[Offset]](json).map(o => (TopicAndPartition(o.topic, o.partition), o.offset)).toMap
+  }
 
   /**
     * Dirty method (because of reflection use) of fetching latest offsets from Kafka brokers.
@@ -24,7 +39,7 @@ abstract class OffsetStore(kafka: TableConfig.Kafka) {
   protected def fetchLatest(): Map[TopicAndPartition, Long] = {
     log.info("Fetching latest offsets from Kafka")
 
-    val kafkaParams = Map("metadata.broker.list" -> kafka.brokers.mkString(","))
+    val kafkaParams = Map("metadata.broker.list" -> config.table.realTime.kafka.get.brokers.mkString(","))
     val kafkaCluster = new KafkaCluster(kafkaParams)
 
     val getFromOffsets = KafkaUtils.getClass.getDeclaredMethods.filter(_.getName == "getFromOffsets")(0)
@@ -32,8 +47,8 @@ abstract class OffsetStore(kafka: TableConfig.Kafka) {
 
     val kafkaUtilsInstance = KafkaUtils.getClass.getField("MODULE$").get(null)
 
-    getFromOffsets.invoke(kafkaUtilsInstance, kafkaCluster.asInstanceOf[Object], kafkaParams, kafka.topics)
-      .asInstanceOf[Map[TopicAndPartition, Long]]
+    getFromOffsets.invoke(kafkaUtilsInstance, kafkaCluster.asInstanceOf[Object], kafkaParams,
+      config.table.realTime.kafka.get.topics).asInstanceOf[Map[TopicAndPartition, Long]]
   }
 
   /**
@@ -58,10 +73,46 @@ abstract class OffsetStore(kafka: TableConfig.Kafka) {
 }
 
 object OffsetStore {
-  def create(kafka: TableConfig.Kafka): OffsetStore = {
-    if (kafka.offsetPath.nonEmpty) {
-      new FileSystemOffsetStore(kafka)
+
+  class FileSystemOffsetStore(config: JobConf) extends OffsetStore(config) {
+
+    val offsetPath = config.table.realTime.kafka.get.offsetStore.fsPath
+
+    override protected def load(): Map[TopicAndPartition, Long] = {
+      Try {
+        log.info(s"Loading Kafka offsets from: ${offsetPath}")
+        deserializeOffsets(FileSystemUtil.getContent(offsetPath))
+      }.getOrElse(Map())
     }
-    throw new IllegalArgumentException("No Kafka offset storage is defined (offsetPath must be set)!")
+
+    override def save(offsets: Map[TopicAndPartition, Long]): Unit = {
+      log.info(s"Storing Kafka offsets to: ${offsetPath}")
+      FileSystemUtil.setContent(offsetPath, serializeOffsets(offsets))
+    }
+  }
+
+  class ConsulOffsetStore(config: JobConf) extends OffsetStore(config) {
+
+    val key = s"${config.consulPrefix.stripSuffix("/")}/kafka/offsets"
+
+    override protected def load(): Map[TopicAndPartition, Long] = {
+      Try {
+        log.info(s"Loading Kafka offsets from Consul key: ${key}")
+        deserializeOffsets(config.consulClient.kvGet(key))
+      }.getOrElse(Map())
+    }
+
+    override def save(offsets: Map[TopicAndPartition, Long]): Unit = {
+      log.info(s"Storing Kafka offsets to Consul key: ${key}")
+      config.consulClient.kvPut(key, serializeOffsets(offsets))
+    }
+  }
+
+  def create(config: JobConf): OffsetStore = {
+    config.table.realTime.kafka.get.offsetStore.`type` match {
+      case "fs" => new FileSystemOffsetStore(config)
+      case "consul" => new ConsulOffsetStore(config)
+      case _ => throw new IllegalArgumentException("Unknown Kafka offset store type!")
+    }
   }
 }
