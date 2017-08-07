@@ -6,7 +6,7 @@ import org.apache.spark.sql.DataFrame
 /**
   * Abstract class for processing data frame
   *
-  * @param config Table configuration
+  * @param config Job configuration
   */
 abstract class Processor(config: JobConf) extends Serializable {
 

@@ -33,7 +33,8 @@ abstract class StreamSource(config: JobConf) {
     preProcess(rdd)
 
     val df = messageFactory.createDataFrame(rdd)
-    df.transform(processor.process)
+      .transform(processor.process)
+
     save(df, time)
 
     postProcess(rdd)

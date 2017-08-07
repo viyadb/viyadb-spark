@@ -8,7 +8,7 @@ class TestMessageFactory(config: JobConf) extends MessageFactory(config) {
   override def createMessage(meta: String, content: String): Option[Row] = None
 }
 
-class EventRowFactorySpec extends UnitSpec {
+class MessageFactorySpec extends UnitSpec {
 
   "MessageFactory" should "support messageFactoryClass" in {
     val config = JobConf(
