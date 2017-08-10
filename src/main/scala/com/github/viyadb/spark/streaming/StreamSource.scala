@@ -2,6 +2,7 @@ package com.github.viyadb.spark.streaming
 
 import com.github.viyadb.spark.Configs.JobConf
 import com.github.viyadb.spark.processing.Processor
+import com.github.viyadb.spark.saving.{Saver, TsvSaver}
 import com.github.viyadb.spark.streaming.kafka.KafkaStreamSource
 import com.github.viyadb.spark.streaming.message.MessageFactory
 import org.apache.spark.rdd.RDD
@@ -23,38 +24,89 @@ abstract class StreamSource(config: JobConf) {
   @transient
   lazy protected val processor = Processor.create(config).getOrElse(new StreamingProcessor(config))
 
+  @transient
+  lazy protected val saver: Saver = new TsvSaver()
+
+  /**
+    * Method for initializing DStream
+    *
+    * @param ssc Spark streaming context
+    * @return new stream
+    */
   protected def createStream(ssc: StreamingContext): DStream[Row]
 
-  protected def preProcess(rdd: RDD[Row]): RDD[Row] = {
+  /**
+    * This method is called prior to any processing in order to improve performance
+    * when multiple operations are executed on a stream.
+    *
+    * @param rdd
+    * @return
+    */
+  protected def cacheRDD(rdd: RDD[Row]): RDD[Row] = {
     rdd.persist(StorageLevel.MEMORY_ONLY_SER)
   }
 
-  protected def process(rdd: RDD[Row], time: Time) = {
-    preProcess(rdd)
-
-    val df = messageFactory.createDataFrame(rdd)
-      .transform(processor.process)
-
-    save(df, time)
-
-    postProcess(rdd)
+  /**
+    * This method is called when RDD of received batch is converted to a Data Frame.
+    *
+    * @param rdd RDD of input rows
+    * @return data frame
+    */
+  protected def createDataFrame(rdd: RDD[Row]): DataFrame = {
+    messageFactory.createDataFrame(rdd)
   }
 
-  protected def save(df: DataFrame, time: Time) = {
-    df.write
-      .option("delimiter", "\t")
-      .option("header", "false")
-      .csv(s"${config.table.realTime.outputPath}/${time.milliseconds}")
+  /**
+    * Main processing method for the data frame.
+    *
+    * @param df Data frame
+    * @return Transformed data frame
+    */
+  protected def processDataFrame(df: DataFrame): DataFrame = {
+    processor.process(df)
   }
 
-  protected def postProcess(rdd: RDD[Row]): Unit = {
+  /**
+    * Main processing method for the input RDD, which is called once per received batch.
+    *
+    * @param rdd  Input RDD
+    * @param time Batch timestamp
+    */
+  protected def processRDD(rdd: RDD[Row], time: Time) = {
+    val cachedRdd = cacheRDD(rdd)
+    val df = createDataFrame(cachedRdd)
+    saveDataFrame(processDataFrame(df), time)
+    uncacheRDD(rdd)
+  }
+
+  /**
+    * This is the output operation for the received batch.
+    *
+    * @param df   Data frame that represents received batch
+    * @param time Batch timestamp
+    */
+  protected def saveDataFrame(df: DataFrame, time: Time) = {
+    saver.save(df, s"${config.table.realTime.outputPath}/${time.milliseconds}")
+  }
+
+  /**
+    * This method removes batch RDD from cache once all the operations on it have been completed.
+    *
+    * @param rdd Batch RDD
+    */
+  protected def uncacheRDD(rdd: RDD[Row]): Unit = {
     rdd.unpersist(true)
   }
 
+  /**
+    * Initializes stream processing (main entry point)
+    *
+    * @param ssc Stream context
+    */
   def start(ssc: StreamingContext): Unit = {
     createStream(ssc).foreachRDD { (rdd, time) =>
       if (rdd.toLocalIterator.nonEmpty) {
-        process(rdd, time)
+        processRDD(rdd, time)
       }
     }
   }

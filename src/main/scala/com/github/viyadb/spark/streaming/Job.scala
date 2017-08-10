@@ -57,6 +57,7 @@ class Job {
       .set("spark.kryoserializer.buffer.max", "512m")
       .set("spark.kryo.registrationRequired", "true")
       .set("spark.kryo.registrator", kryoRegistrator().getName())
+      .set("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
   }
 
   protected def createStreamingContext(config: JobConf): StreamingContext = {

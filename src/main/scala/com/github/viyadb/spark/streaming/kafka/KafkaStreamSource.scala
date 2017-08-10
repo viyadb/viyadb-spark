@@ -27,8 +27,8 @@ class KafkaStreamSource(config: JobConf) extends StreamSource(config) {
       (m: MessageAndMetadata[String, String]) => messageFactory.createMessage(m.topic, m.message()).get)
   }
 
-  override protected def postProcess(rdd: RDD[Row]): Unit = {
-    super.postProcess(rdd)
+  override protected def uncacheRDD(rdd: RDD[Row]): Unit = {
+    super.uncacheRDD(rdd)
 
     val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
     offsetStore.save(offsetRanges.map(r => (r.topicAndPartition(), r.untilOffset)).toMap)

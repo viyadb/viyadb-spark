@@ -5,11 +5,12 @@ import java.text.SimpleDateFormat
 
 import com.github.viyadb.spark.Configs.{DimensionConf, JobConf, MetricConf, ParseSpecConf}
 import com.github.viyadb.spark.util.TimeUtil
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
-abstract class MessageFactory(config: JobConf) extends Serializable {
+class MessageFactory(config: JobConf) extends Serializable {
 
   @transient
   protected val parseSpec = config.table.realTime.parseSpec.getOrElse(new ParseSpecConf(""))
@@ -117,15 +118,17 @@ abstract class MessageFactory(config: JobConf) extends Serializable {
     */
   protected def createMessage(values: Array[String]): Option[Row] = {
     Some(
-      new Message(indexedFields.zip(values).map { case ((field, fieldIdx), value) =>
-        field.dataType match {
-          case IntegerType => value.toInt
-          case LongType => value.toLong
-          case DoubleType => value.toDouble
-          case TimestampType => parseTimeValue(value, fieldIdx)
-          case StringType => value
-        }
-      })
+      new Message(
+        indexedFields.map { case (field, fieldIdx) =>
+          val value = values(fieldIdx)
+          field.dataType match {
+            case IntegerType => value.toInt
+            case LongType => value.toLong
+            case DoubleType => value.toDouble
+            case TimestampType => parseTimeValue(value, fieldIdx)
+            case StringType => value
+          }
+        })
     )
   }
 
@@ -137,7 +140,8 @@ abstract class MessageFactory(config: JobConf) extends Serializable {
     */
   protected def createMessage(values: Array[_ <: Object]): Option[Row] = {
     Some(
-      new Message(indexedFields.zip(values).map { case ((field, fieldIdx), value) =>
+      new Message(indexedFields.map { case (field, fieldIdx) =>
+        val value = values(fieldIdx)
         field.dataType match {
           case IntegerType => javaValueParser.parseInt(value)
           case LongType => javaValueParser.parseLong(value)
@@ -158,7 +162,7 @@ abstract class MessageFactory(config: JobConf) extends Serializable {
     * @param content Received content
     * @return generated message as Row or <code>None</code> in case it couldn't be generated for some reason
     */
-  def createMessage(meta: String, content: String): Option[Row]
+  def createMessage(meta: String, content: String): Option[Row] = None
 
   /**
     * Create Spark data frame for RDD of messages
@@ -171,9 +175,9 @@ abstract class MessageFactory(config: JobConf) extends Serializable {
   }
 }
 
-object MessageFactory {
+object MessageFactory extends Logging {
   def create(config: JobConf): MessageFactory = {
-    config.table.realTime.messageFactoryClass.map(c =>
+    val messageFactory = config.table.realTime.messageFactoryClass.map(c =>
       Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[MessageFactory]
     ).getOrElse(
       config.table.realTime.parseSpec.map(parseSpec =>
@@ -183,8 +187,10 @@ object MessageFactory {
           case _ => throw new IllegalArgumentException("Unsupported message format specified in parse spec!")
         }
       ).getOrElse(
-        throw new IllegalArgumentException("Either messageFactoryClass or parseSpec must be specified!")
+        new MessageFactory(config)
       )
     )
+    logInfo(s"Created message factory: ${messageFactory.getClass.getName}")
+    messageFactory
   }
 }

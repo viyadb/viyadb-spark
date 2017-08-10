@@ -6,9 +6,6 @@ import org.apache.spark.sql.functions._
 
 class TimeTruncator(config: JobConf) extends Processor(config) {
 
-  @transient
-  lazy val log = org.apache.log4j.Logger.getLogger(getClass)
-
   protected def truncate(column: String, format: String)(df: DataFrame): DataFrame = {
     if (format == "second") {
       df

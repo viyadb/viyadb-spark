@@ -2,10 +2,8 @@ package com.github.viyadb.spark.streaming.message
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import org.apache.spark.sql.Row
 
 class TestMessageFactory(config: JobConf) extends MessageFactory(config) {
-  override def createMessage(meta: String, content: String): Option[Row] = None
 }
 
 class MessageFactorySpec extends UnitSpec {
