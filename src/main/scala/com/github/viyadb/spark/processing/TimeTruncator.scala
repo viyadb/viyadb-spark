@@ -3,6 +3,7 @@ package com.github.viyadb.spark.processing
 import com.github.viyadb.spark.Configs.JobConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{LongType, TimestampType}
 
 class TimeTruncator(config: JobConf) extends Processor(config) {
 
@@ -13,8 +14,8 @@ class TimeTruncator(config: JobConf) extends Processor(config) {
       val newCol = format match {
         case "year" | "month" => trunc(df(column), format)
         case "day" => date_sub(df(column), 0)
-        case "hour" => (floor(unix_timestamp(df(column)) / 3600) * 3600).cast("timestamp")
-        case "minute" => (floor(unix_timestamp(df(column)) / 60) * 60).cast("timestamp")
+        case "hour" => (floor(df(column).cast(LongType) / 3600) * 3600).cast(TimestampType)
+        case "minute" => (floor(df(column).cast(LongType) / 60) * 60).cast(TimestampType)
       }
       df.withColumn(column, newCol)
     }

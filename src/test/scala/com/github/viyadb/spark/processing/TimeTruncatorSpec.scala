@@ -1,6 +1,8 @@
 package com.github.viyadb.spark.processing
 
 import java.sql.Timestamp
+import java.time.ZoneId
+import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
@@ -14,6 +16,7 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
   private var ss: SparkSession = _
 
   before {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     ss = SparkSession.builder().appName(getClass.getName)
       .master("local[*]")
       .getOrCreate()
@@ -25,7 +28,7 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
     }
   }
 
-  "Rolluper" should "truncate dimensions" in {
+  "TimeTruncator" should "truncate dimensions" in {
     val config = JobConf(
       table = TableConf(
         name = "",
@@ -57,16 +60,15 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
           new Timestamp(t), new Timestamp(t), new Timestamp(t)))
     ).toDF()
 
-    val result = new TimeTruncator(config).process(df)
-      .map(row => row.toSeq.map(_.toString)).collect()
+    val result = new TimeTruncator(config).process(df).map(row => row.toSeq.map(_.toString)).collect()
 
-    assert(result(0) == Seq("2017-01-01", "2017-08-01", "2017-08-07", "2017-08-07 15:00:00.0",
-      "2017-08-07 15:59:00.0", "2017-08-07 15:59:26.0"))
+    assert(result(0) == Seq("2017-01-01", "2017-08-01", "2017-08-07", "2017-08-07 12:00:00.0",
+      "2017-08-07 12:59:00.0", "2017-08-07 12:59:26.0"))
 
-    assert(result(1) == Seq("2012-01-01", "2012-03-01", "2012-03-08", "2012-03-08 01:00:00.0",
-      "2012-03-08 01:59:00.0", "2012-03-08 01:59:14.0"))
+    assert(result(1) == Seq("2012-01-01", "2012-03-01", "2012-03-07", "2012-03-07 23:00:00.0",
+      "2012-03-07 23:59:00.0", "2012-03-07 23:59:14.0"))
 
-    assert(result(2) == Seq("2014-01-01", "2014-01-01", "2014-01-01", "2014-01-01 02:00:00.0",
-      "2014-01-01 02:01:00.0", "2014-01-01 02:01:01.0"))
+    assert(result(2) == Seq("2014-01-01", "2014-01-01", "2014-01-01", "2014-01-01 00:00:00.0",
+      "2014-01-01 00:01:00.0", "2014-01-01 00:01:01.0"))
   }
 }

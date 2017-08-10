@@ -1,6 +1,7 @@
 package com.github.viyadb.spark.streaming
 
 import java.net.InetAddress
+import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
 import com.github.viyadb.spark.util.{ConsulClient, DirectOutputCommitter}
@@ -81,6 +82,8 @@ class Job {
   }
 
   def run(args: Array[String]): Unit = {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+
     val config = readConfig(parseArguments(args))
     val ssc = createStreamingContext(config)
 
