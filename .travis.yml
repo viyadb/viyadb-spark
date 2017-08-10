@@ -1,0 +1,4 @@
+language: scala
+install: mvn package
+jdk:
+  - openjdk8

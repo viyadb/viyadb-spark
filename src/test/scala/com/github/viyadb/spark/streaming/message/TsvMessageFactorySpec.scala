@@ -12,12 +12,12 @@ class TsvMessageFactorySpec extends UnitSpec {
     val config = JobConf(
       table = TableConf(
         name = "foo",
+        deepStorePath = "",
         realTime = RealTimeConf(
           parseSpec = Some(ParseSpecConf(
             format = "tsv",
             columns = Some(Seq("app", "date", "network", "network_id", "city", "sessions", "installs", "revenue"))
-          )),
-          outputPath = ""
+          ))
         ),
         batch = BatchConf(),
         dimensions = Seq(

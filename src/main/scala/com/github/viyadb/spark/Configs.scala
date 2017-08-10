@@ -22,14 +22,13 @@ object Configs {
                            nullNumericAsZero: Boolean = true,
                            nullStringAsEmpty: Boolean = true) extends Serializable
 
-  case class TimeColumnConf(name: String, format: Option[String] = None) extends Serializable
+  case class TimeColumnConf(name: String = "timestamp", format: Option[String] = None) extends Serializable
 
   case class RealTimeConf(streamSourceClass: Option[String] = None,
                           kafka: Option[KafkaConf] = None,
                           parseSpec: Option[ParseSpecConf] = None,
                           windowDuration: Option[Period] = None,
-                          messageFactoryClass: Option[String] = None,
-                          outputPath: String) extends Serializable
+                          messageFactoryClass: Option[String] = None) extends Serializable
 
   case class DimensionConf(name: String,
                            `type`: Option[String] = Some("string"),
@@ -38,7 +37,7 @@ object Configs {
                            granularity: Option[String] = None) extends Serializable {
 
     def isTimeType(): Boolean = {
-      `type`.map(t => (t == "time") || (t == "microtime")).getOrElse(false)
+      `type`.exists(t => (t == "time") || (t == "microtime"))
     }
   }
 
@@ -47,15 +46,16 @@ object Configs {
                         `type`: String) extends Serializable
 
   case class BatchConf(batchDuration: Option[Period] = None,
-                       keepInterval: Option[Interval] = None,
-                       timeColumn: Option[TimeColumnConf] = None) extends Serializable
+                       keepInterval: Option[Interval] = None) extends Serializable
 
   case class TableConf(name: String,
                        realTime: RealTimeConf,
                        batch: BatchConf,
                        processorClass: Option[String] = None,
                        dimensions: Seq[DimensionConf],
-                       metrics: Seq[MetricConf]) extends Serializable
+                       metrics: Seq[MetricConf],
+                       timeColumn: Option[TimeColumnConf] = None,
+                       deepStorePath: String) extends Serializable
 
   case class JobConf(consulClient: ConsulClient = new ConsulClient(),
                      consulPrefix: String = "viyadb-cluster", table: TableConf) extends Serializable

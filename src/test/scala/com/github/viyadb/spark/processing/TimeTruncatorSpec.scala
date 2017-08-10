@@ -29,9 +29,8 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
     val config = JobConf(
       table = TableConf(
         name = "",
-        realTime = RealTimeConf(
-          outputPath = ""
-        ),
+        deepStorePath = "",
+        realTime = RealTimeConf(),
         batch = BatchConf(),
         dimensions = Seq(
           DimensionConf(name = "y", `type` = Some("time"), granularity = Some("year")),

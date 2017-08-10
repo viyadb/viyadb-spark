@@ -2,7 +2,6 @@ package com.github.viyadb.spark.streaming
 
 import com.github.viyadb.spark.Configs.JobConf
 import com.github.viyadb.spark.processing.Processor
-import com.github.viyadb.spark.saving.{Saver, TsvSaver}
 import com.github.viyadb.spark.streaming.kafka.KafkaStreamSource
 import com.github.viyadb.spark.streaming.message.MessageFactory
 import org.apache.spark.rdd.RDD
@@ -25,7 +24,7 @@ abstract class StreamSource(config: JobConf) {
   lazy protected val processor = Processor.create(config).getOrElse(new StreamingProcessor(config))
 
   @transient
-  lazy protected val saver: Saver = new TsvSaver()
+  lazy protected val saver = new MicroBatchSaver(config)
 
   /**
     * Method for initializing DStream
@@ -86,7 +85,7 @@ abstract class StreamSource(config: JobConf) {
     * @param time Batch timestamp
     */
   protected def saveDataFrame(df: DataFrame, time: Time) = {
-    saver.save(df, s"${config.table.realTime.outputPath}/${time.milliseconds}")
+    saver.save(df, time)
   }
 
   /**

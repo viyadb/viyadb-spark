@@ -3,6 +3,8 @@ viyadb-spark
 
 Data processing backend for ViyaDB based on Spark.
 
+[![Build Status](https://travis-ci.org/viyadb/viyadb-spark.svg?branch=master)
+
 ## Prerequisites
 
  * [Consul](http://www.consul.io)

@@ -12,8 +12,8 @@ class MessageFactorySpec extends UnitSpec {
     val config = JobConf(
       table = TableConf(
         name = "foo",
+        deepStorePath = "",
         realTime = RealTimeConf(
-          outputPath = "",
           messageFactoryClass = Some(classOf[TestMessageFactory].getName)
         ),
         batch = BatchConf(),

@@ -12,11 +12,11 @@ class JsonMessageFactorySpec extends UnitSpec {
     val config = JobConf(
       table = TableConf(
         name = "foo",
+        deepStorePath = "",
         realTime = RealTimeConf(
           parseSpec = Some(ParseSpecConf(
             format = "json"
-          )),
-          outputPath = ""
+          ))
         ),
         batch = BatchConf(),
         dimensions = Seq(
@@ -82,6 +82,7 @@ class JsonMessageFactorySpec extends UnitSpec {
     val config = JobConf(
       table = TableConf(
         name = "foo",
+        deepStorePath = "",
         realTime = RealTimeConf(
           parseSpec = Some(ParseSpecConf(
             format = "json",
@@ -93,8 +94,7 @@ class JsonMessageFactorySpec extends UnitSpec {
               "revenue" -> "$.stats.revenue",
               "sessions" -> "$.stats.sessions"
             ))
-          )),
-          outputPath = ""
+          ))
         ),
         batch = BatchConf(),
         dimensions = Seq(

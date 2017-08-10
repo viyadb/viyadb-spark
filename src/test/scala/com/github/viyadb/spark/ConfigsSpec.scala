@@ -9,13 +9,13 @@ class ConfigsSpec extends UnitSpec {
       """
        |{
        |  "name": "foo",
+       |  "deepStorePath": "",
        |  "realTime": {
        |    "windowDuration": "PT1M",
        |    "parseSpec": {
        |      "format": "tsv",
        |      "columns": ["first", "second"]
-       |    },
-       |    "outputPath": ""
+       |    }
        |  },
        |  "batch": {
        |    "keepInterval": "2017-01-01/P1M"

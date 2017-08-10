@@ -14,9 +14,8 @@ class ProcessorSpec extends UnitSpec {
     val config = JobConf(
       table = TableConf(
         name = "foo",
-        realTime = RealTimeConf(
-          outputPath = ""
-        ),
+        deepStorePath = "",
+        realTime = RealTimeConf(),
         batch = BatchConf(),
         processorClass = Some(classOf[TestProcessor].getName),
         dimensions = Seq(),

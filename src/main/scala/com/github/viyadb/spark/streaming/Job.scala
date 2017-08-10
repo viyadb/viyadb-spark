@@ -3,7 +3,7 @@ package com.github.viyadb.spark.streaming
 import java.net.InetAddress
 
 import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
-import com.github.viyadb.spark.util.ConsulClient
+import com.github.viyadb.spark.util.{ConsulClient, DirectOutputCommitter}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -58,6 +58,7 @@ class Job {
       .set("spark.kryo.registrationRequired", "true")
       .set("spark.kryo.registrator", kryoRegistrator().getName())
       .set("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
+      .set("spark.hadoop.mapred.output.committer.class", classOf[DirectOutputCommitter].getName)
   }
 
   protected def createStreamingContext(config: JobConf): StreamingContext = {

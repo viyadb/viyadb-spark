@@ -12,7 +12,8 @@ class ConsulClient(hostname: String = "localhost", port: Int = 8500, token: Opti
   class ConsulException(msg: String) extends IOException(msg)
 
   protected def get(path: String) = {
-    val r = Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}").asString
+    val r = Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}")
+      .option(HttpOptions.connTimeout(3000)).asString
     if (!r.is2xx) {
       throw new ConsulException("Wrong HTTP status returned")
     }
@@ -20,7 +21,9 @@ class ConsulClient(hostname: String = "localhost", port: Int = 8500, token: Opti
   }
 
   def kvPut(path: String, data: String) = {
-    if (!Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}").put(data)
+    if (!Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}")
+      .put(data)
+      .option(HttpOptions.connTimeout(3000))
       .header("content-type", "application/json").asString.is2xx) {
       throw new ConsulException("Wrong HTTP status returned")
     }
