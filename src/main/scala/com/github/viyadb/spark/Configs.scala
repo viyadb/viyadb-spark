@@ -25,6 +25,7 @@ object Configs {
   case class TimeColumnConf(name: String = "timestamp", format: Option[String] = None) extends Serializable
 
   case class RealTimeConf(streamSourceClass: Option[String] = None,
+                          processorClass: Option[String] = None,
                           kafka: Option[KafkaConf] = None,
                           parseSpec: Option[ParseSpecConf] = None,
                           windowDuration: Option[Period] = None,
@@ -45,20 +46,40 @@ object Configs {
                         max: Option[Long] = None,
                         `type`: String) extends Serializable
 
-  case class BatchConf(batchDuration: Option[Period] = None,
-                       keepInterval: Option[Interval] = None) extends Serializable
+  case class BatchConf(processorClass: Option[String] = None,
+                       batchDuration: Option[Period] = None,
+                       keepInterval: Option[Interval] = None) extends Serializable {
+
+    def batchDurationInMillis(): Long = {
+      batchDuration.getOrElse(Period.days(1)).toStandardSeconds.getSeconds * 1000L
+    }
+  }
 
   case class TableConf(name: String,
                        realTime: RealTimeConf,
                        batch: BatchConf,
-                       processorClass: Option[String] = None,
                        dimensions: Seq[DimensionConf],
                        metrics: Seq[MetricConf],
                        timeColumn: Option[TimeColumnConf] = None,
                        deepStorePath: String) extends Serializable
 
   case class JobConf(consulClient: ConsulClient = new ConsulClient(),
-                     consulPrefix: String = "viyadb-cluster", table: TableConf) extends Serializable
+                     consulPrefix: String = "viyadb-cluster", table: TableConf) extends Serializable {
+
+    /**
+      * @return prefix under which batch process artifacts will be saved
+      */
+    def batchPrefix(): String = {
+      s"${table.deepStorePath}/batch"
+    }
+
+    /**
+      * @return prefix under which micro-batches will be saved
+      */
+    def realtimePrefix(): String = {
+      s"${table.deepStorePath}/realtime"
+    }
+  }
 
   def parseTableConf(json: String): TableConf = {
     implicit val formats = DefaultFormats ++ JodaSerializers.all

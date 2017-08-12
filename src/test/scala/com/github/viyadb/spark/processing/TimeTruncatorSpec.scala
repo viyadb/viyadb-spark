@@ -1,15 +1,19 @@
 package com.github.viyadb.spark.processing
 
 import java.sql.Timestamp
-import java.time.ZoneId
 import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.processing.TimeTruncatorSpec.TimeEvent
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
 
-case class TimeEvent(y: Timestamp, m: Timestamp, d: Timestamp, h: Timestamp, min: Timestamp, s: Timestamp)
+object TimeTruncatorSpec {
+
+  case class TimeEvent(y: Timestamp, m: Timestamp, d: Timestamp, h: Timestamp, min: Timestamp, s: Timestamp)
+
+}
 
 class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
 

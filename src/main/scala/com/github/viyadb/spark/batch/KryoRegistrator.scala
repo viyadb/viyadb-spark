@@ -2,8 +2,8 @@ package com.github.viyadb.spark.batch
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
-import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
+import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.util.ConsulClient
 import org.apache.spark.streaming.receiver.Receiver
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}

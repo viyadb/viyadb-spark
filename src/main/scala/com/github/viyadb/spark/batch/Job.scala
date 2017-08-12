@@ -2,9 +2,9 @@ package com.github.viyadb.spark.batch
 
 import java.util.TimeZone
 
-import com.github.viyadb.spark.{CmdArgs, Configs}
-import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
-import com.github.viyadb.spark.util.{ConsulClient, DirectOutputCommitter}
+import com.github.viyadb.spark.Configs
+import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.util.DirectOutputCommitter
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
@@ -39,6 +39,9 @@ class Job {
   def run(args: Array[String]): Unit = {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     val config = Configs.readConfig(args)
+
+    val spark = createSparkSession(config)
+    new BatchProcess(config).start(spark)
   }
 }
 

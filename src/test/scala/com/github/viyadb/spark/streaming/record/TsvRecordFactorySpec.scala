@@ -41,7 +41,7 @@ class TsvRecordFactorySpec extends UnitSpec {
     val tsvContent = Seq(
       "a.b.c\t2017-01-01 11:43:55\tfacebook\t123\tNew York\t30\t4\t0.1",
       "x.y.z\t2017-01-03 12:13:00\tgoogle\t321\tBoston\t50\t5\t11.1",
-      "q.w.e\t2016-12-12 01:20:01\tfacebook\t123\tSan Francisco\t10\t6\t8"
+      "q.w.e\t2016-12-12 01:20:01\tfacebook\t123\tSan Francisco\t10\t6\t8.0"
     )
 
     val rows = tsvContent.map(tsv => recordFactory.createRecord("", tsv).get)
@@ -55,5 +55,11 @@ class TsvRecordFactorySpec extends UnitSpec {
 
     assert(rows(2) == new Record(Array("q.w.e", new Timestamp(
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 10L, 6, 8.0)))
+
+    assert(Set(
+      "a.b.c\t2017-01-01 11:43:55\tfacebook\tNew York\t30\t4\t0.1",
+      "x.y.z\t2017-01-03 12:13:00\tgoogle\tBoston\t50\t5\t11.1",
+      "q.w.e\t2016-12-12 01:20:01\tfacebook\tSan Francisco\t10\t6\t8.0"
+    ) == rows.map(r => recordFactory.toTsvLine(r)).toSet)
   }
 }

@@ -1,7 +1,5 @@
 package com.github.viyadb.spark
 
-import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
-import com.github.viyadb.spark.util.ConsulClient
 import scopt._
 
 case class CmdArgs(consulHost: String = "localhost", consulPort: Int = 8500,

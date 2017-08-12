@@ -19,7 +19,9 @@ abstract class StreamSource(config: JobConf) {
 
   lazy protected val recordFactory = RecordFactory.create(config)
 
-  lazy protected val processor = Processor.create(config).getOrElse(new StreamingProcessor(config))
+  lazy protected val processor = config.table.realTime.processorClass.map(c =>
+    Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
+  ).getOrElse(new StreamingProcessor(config))
 
   lazy protected val saver = new MicroBatchSaver(config, recordFactory)
 

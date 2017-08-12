@@ -12,12 +12,3 @@ abstract class Processor(config: JobConf) extends Serializable {
 
   def process(df: DataFrame): DataFrame
 }
-
-object Processor {
-
-  def create(config: JobConf): Option[Processor] = {
-    config.table.processorClass.map(c =>
-      Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
-    )
-  }
-}

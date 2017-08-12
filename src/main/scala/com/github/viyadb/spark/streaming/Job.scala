@@ -2,9 +2,9 @@ package com.github.viyadb.spark.streaming
 
 import java.util.TimeZone
 
-import com.github.viyadb.spark.{CmdArgs, Configs}
-import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
-import com.github.viyadb.spark.util.{ConsulClient, DirectOutputCommitter}
+import com.github.viyadb.spark.Configs
+import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.util.DirectOutputCommitter
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}

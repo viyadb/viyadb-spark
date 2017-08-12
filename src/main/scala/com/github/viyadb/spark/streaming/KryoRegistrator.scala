@@ -2,8 +2,8 @@ package com.github.viyadb.spark.streaming
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
-import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
+import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.streaming.kafka.OffsetStore.{ConsulOffsetStore, FileSystemOffsetStore}
 import com.github.viyadb.spark.streaming.kafka.{KafkaStreamSource, OffsetStore}
 import com.github.viyadb.spark.streaming.record.{JsonRecordFactory, RecordFactory, TsvRecordFactory}
