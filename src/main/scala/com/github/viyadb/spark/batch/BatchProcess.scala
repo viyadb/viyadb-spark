@@ -8,7 +8,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 
 /**
-  * Loads micro-batch data produced by the streaming processes
+  * Processes micro-batch data produced by the streaming processes
   */
 class BatchProcess(config: JobConf) extends Serializable with Logging {
 
@@ -44,9 +44,11 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     */
   def start(spark: SparkSession): Unit = {
     batchesToProcess().par.foreach { ts =>
-      val df = recordFormat.loadDataFrame(spark, s"${config.realtimePrefix()}/dt=${ts}/*/*.gz")
-
+      val sourceDir = s"${config.realtimePrefix()}/dt=${ts}"
       val targetDir = s"${config.batchPrefix()}/dt=${ts}"
+      logInfo(s"${sourceDir} => ${targetDir}")
+
+      val df = recordFormat.loadDataFrame(spark, s"${sourceDir}/**")
       FileSystemUtil.delete(targetDir)
 
       processor.process(df)

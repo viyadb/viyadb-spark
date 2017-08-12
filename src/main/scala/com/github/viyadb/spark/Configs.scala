@@ -25,11 +25,11 @@ object Configs {
   case class TimeColumnConf(name: String = "timestamp", format: Option[String] = None) extends Serializable
 
   case class RealTimeConf(streamSourceClass: Option[String] = None,
-                          processorClass: Option[String] = None,
                           kafka: Option[KafkaConf] = None,
                           parseSpec: Option[ParseSpecConf] = None,
                           windowDuration: Option[Period] = None,
-                          recordFactoryClass: Option[String] = None) extends Serializable
+                          recordFactoryClass: Option[String] = None,
+                          processorClass: Option[String] = None) extends Serializable
 
   case class DimensionConf(name: String,
                            `type`: Option[String] = Some("string"),
@@ -46,9 +46,9 @@ object Configs {
                         max: Option[Long] = None,
                         `type`: String) extends Serializable
 
-  case class BatchConf(processorClass: Option[String] = None,
-                       batchDuration: Option[Period] = None,
-                       keepInterval: Option[Interval] = None) extends Serializable {
+  case class BatchConf(batchDuration: Option[Period] = None,
+                       keepInterval: Option[Interval] = None,
+                       processorClass: Option[String] = None) extends Serializable {
 
     def batchDurationInMillis(): Long = {
       batchDuration.getOrElse(Period.days(1)).toStandardSeconds.getSeconds * 1000L
@@ -81,11 +81,17 @@ object Configs {
     }
   }
 
-  def parseTableConf(json: String): TableConf = {
+  private[spark] def parseTableConf(json: String): TableConf = {
     implicit val formats = DefaultFormats ++ JodaSerializers.all
     read[TableConf](json)
   }
 
+  /**
+    * Parses command line arguments, and reads job configuration from Consul
+    *
+    * @param args Command line arguments
+    * @return job configuration
+    */
   def readConfig(args: Array[String]): JobConf = {
     val cmdArgs = CmdArgs.parse(args)
     val consul = new ConsulClient(cmdArgs.consulHost, cmdArgs.consulPort, cmdArgs.consulToken)

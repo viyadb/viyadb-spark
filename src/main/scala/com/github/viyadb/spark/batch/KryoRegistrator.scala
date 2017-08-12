@@ -27,7 +27,6 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[ProcessorChain])
     kryo.register(classOf[Aggregator])
     kryo.register(classOf[Record])
-    kryo.register(classOf[Array[Receiver[_]]])
 
     kryo.register(classOf[Period])
     kryo.register(classOf[PeriodType])
