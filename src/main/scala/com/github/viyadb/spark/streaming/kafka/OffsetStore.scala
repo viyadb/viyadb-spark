@@ -3,6 +3,7 @@ package com.github.viyadb.spark.streaming.kafka
 import com.github.viyadb.spark.Configs.JobConf
 import com.github.viyadb.spark.util.FileSystemUtil
 import kafka.common.TopicAndPartition
+import org.apache.spark.internal.Logging
 import org.apache.spark.streaming.kafka.{KafkaCluster, KafkaUtils}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization.{read, write}
@@ -14,10 +15,7 @@ import scala.util.Try
   *
   * @param config Kafka source configuration
   */
-abstract class OffsetStore(config: JobConf) {
-
-  @transient
-  lazy val log = org.apache.log4j.Logger.getLogger(getClass)
+abstract class OffsetStore(config: JobConf) extends Logging with Serializable {
 
   case class Offset(topic: String, partition: Int, offset: Long) extends Serializable
 
@@ -37,7 +35,7 @@ abstract class OffsetStore(config: JobConf) {
     * @return Offsets per topic and partition
     */
   protected def fetchLatest(): Map[TopicAndPartition, Long] = {
-    log.info("Fetching latest offsets from Kafka")
+    logInfo("Fetching latest offsets from Kafka")
 
     val kafkaParams = Map("metadata.broker.list" -> config.table.realTime.kafka.get.brokers.mkString(","))
     val kafkaCluster = new KafkaCluster(kafkaParams)
@@ -80,13 +78,13 @@ object OffsetStore {
 
     override protected def load(): Map[TopicAndPartition, Long] = {
       Try {
-        log.info(s"Loading Kafka offsets from: ${offsetPath}")
+        logInfo(s"Loading Kafka offsets from: ${offsetPath}")
         deserializeOffsets(FileSystemUtil.getContent(offsetPath))
       }.getOrElse(Map())
     }
 
     override def save(offsets: Map[TopicAndPartition, Long]): Unit = {
-      log.info(s"Storing Kafka offsets to: ${offsetPath}")
+      logInfo(s"Storing Kafka offsets to: ${offsetPath}")
       FileSystemUtil.setContent(offsetPath, serializeOffsets(offsets))
     }
   }
@@ -97,13 +95,13 @@ object OffsetStore {
 
     override protected def load(): Map[TopicAndPartition, Long] = {
       Try {
-        log.info(s"Loading Kafka offsets from Consul key: ${key}")
+        logInfo(s"Loading Kafka offsets from Consul key: ${key}")
         deserializeOffsets(config.consulClient.kvGet(key))
       }.getOrElse(Map())
     }
 
     override def save(offsets: Map[TopicAndPartition, Long]): Unit = {
-      log.info(s"Storing Kafka offsets to Consul key: ${key}")
+      logInfo(s"Storing Kafka offsets to Consul key: ${key}")
       config.consulClient.kvPut(key, serializeOffsets(offsets))
     }
   }

@@ -17,7 +17,6 @@ import org.apache.spark.sql.DataFrame
   */
 class ProcessorChain(config: JobConf, chain: Seq[Processor]) extends Processor(config) {
 
-  @transient
   private val composedProcessors = chain.map(p => (df: DataFrame) => p.process(df))
     .reverse.reduceLeft(_ compose _)
 

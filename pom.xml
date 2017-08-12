@@ -134,8 +134,8 @@
                         <configuration>
                             <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
                             <args>
-                                <arg>-deprecation</arg>
                                 <arg>-feature</arg>
+                                <arg>-deprecation</arg>
                             </args>
                         </configuration>
                     </execution>

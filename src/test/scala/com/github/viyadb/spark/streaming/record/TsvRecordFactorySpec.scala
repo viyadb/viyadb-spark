@@ -1,14 +1,15 @@
-package com.github.viyadb.spark.streaming.message
+package com.github.viyadb.spark.streaming.record
 
 import java.sql.Timestamp
 import java.util.GregorianCalendar
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.record.Record
 
-class TsvMessageFactorySpec extends UnitSpec {
+class TsvRecordFactorySpec extends UnitSpec {
 
-  "TsvMessageFactory" should "parse TSV input" in {
+  "TsvRecordFactory" should "parse TSV input" in {
     val config = JobConf(
       table = TableConf(
         name = "foo",
@@ -34,8 +35,8 @@ class TsvMessageFactorySpec extends UnitSpec {
       )
     )
 
-    val messageFactory = MessageFactory.create(config)
-    assert(messageFactory.getClass == classOf[TsvMessageFactory])
+    val recordFactory = RecordFactory.create(config)
+    assert(recordFactory.getClass == classOf[TsvRecordFactory])
 
     val tsvContent = Seq(
       "a.b.c\t2017-01-01 11:43:55\tfacebook\t123\tNew York\t30\t4\t0.1",
@@ -43,16 +44,16 @@ class TsvMessageFactorySpec extends UnitSpec {
       "q.w.e\t2016-12-12 01:20:01\tfacebook\t123\tSan Francisco\t10\t6\t8"
     )
 
-    val rows = tsvContent.map(tsv => messageFactory.createMessage("", tsv).get)
+    val rows = tsvContent.map(tsv => recordFactory.createRecord("", tsv).get)
     assert(rows.size == 3)
 
-    assert(rows(0) == new Message(Array("a.b.c", new Timestamp(
+    assert(rows(0) == new Record(Array("a.b.c", new Timestamp(
       new GregorianCalendar(2017, 0, 1, 11, 43, 55).getTimeInMillis), "facebook", "New York", 30L, 4, 0.1)))
 
-    assert(rows(1) == new Message(Array("x.y.z", new Timestamp(
+    assert(rows(1) == new Record(Array("x.y.z", new Timestamp(
       new GregorianCalendar(2017, 0, 3, 12, 13, 0).getTimeInMillis), "google", "Boston", 50L, 5, 11.1)))
 
-    assert(rows(2) == new Message(Array("q.w.e", new Timestamp(
+    assert(rows(2) == new Record(Array("q.w.e", new Timestamp(
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 10L, 6, 8.0)))
   }
 }

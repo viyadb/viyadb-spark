@@ -21,7 +21,6 @@ class TimeTruncator(config: JobConf) extends Processor(config) {
     }
   }
 
-  @transient
   private val truncateFuncs = config.table.dimensions.filter(d => d.isTimeType() && d.granularity.nonEmpty)
     .map(dim => truncate(dim.name, dim.granularity.get)(_))
 

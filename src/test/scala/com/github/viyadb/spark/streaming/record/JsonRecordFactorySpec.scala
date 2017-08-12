@@ -1,14 +1,15 @@
-package com.github.viyadb.spark.streaming.message
+package com.github.viyadb.spark.streaming.record
 
 import java.sql.Timestamp
 import java.util.GregorianCalendar
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.record.Record
 
-class JsonMessageFactorySpec extends UnitSpec {
+class JsonRecordFactorySpec extends UnitSpec {
 
-  "JsonMessageFactory" should "parse JSON input without field mapping" in {
+  "JsonRecordFactory" should "parse JSON input without field mapping" in {
     val config = JobConf(
       table = TableConf(
         name = "foo",
@@ -32,8 +33,8 @@ class JsonMessageFactorySpec extends UnitSpec {
       )
     )
 
-    val messageFactory = MessageFactory.create(config)
-    assert(messageFactory.getClass == classOf[JsonMessageFactory])
+    val recordFactory = RecordFactory.create(config)
+    assert(recordFactory.getClass == classOf[JsonRecordFactory])
 
     val jsonContent = Seq(
       """{
@@ -65,20 +66,20 @@ class JsonMessageFactorySpec extends UnitSpec {
         |}"""
     ).map(_.stripMargin)
 
-    val rows = jsonContent.map(json => messageFactory.createMessage("", json).get)
+    val rows = jsonContent.map(json => recordFactory.createRecord("", json).get)
     assert(rows.size == 3)
 
-    assert(rows(0) == new Message(Array("a.b.c", new Timestamp(
+    assert(rows(0) == new Record(Array("a.b.c", new Timestamp(
       new GregorianCalendar(2017, 0, 1, 11, 43, 55).getTimeInMillis), "facebook", "New York", 0.1, 3L)))
 
-    assert(rows(1) == new Message(Array("x.y.z", new Timestamp(
+    assert(rows(1) == new Record(Array("x.y.z", new Timestamp(
       new GregorianCalendar(2017, 0, 3, 12, 13, 0).getTimeInMillis), "google", "Boston", 11.1, 5L)))
 
-    assert(rows(2) == new Message(Array("q.w.e", new Timestamp(
+    assert(rows(2) == new Record(Array("q.w.e", new Timestamp(
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 8.0, 1L)))
   }
 
-  "JsonMessageFactory" should "parse JSON input with field mapping" in {
+  "JsonRecordFactory" should "parse JSON input with field mapping" in {
     val config = JobConf(
       table = TableConf(
         name = "foo",
@@ -110,8 +111,8 @@ class JsonMessageFactorySpec extends UnitSpec {
       )
     )
 
-    val messageFactory = MessageFactory.create(config)
-    assert(messageFactory.getClass == classOf[JsonMessageFactory])
+    val recordFactory = RecordFactory.create(config)
+    assert(recordFactory.getClass == classOf[JsonRecordFactory])
 
     val jsonContent = Seq(
       """{
@@ -161,16 +162,16 @@ class JsonMessageFactorySpec extends UnitSpec {
         |}"""
     ).map(_.stripMargin)
 
-    val rows = jsonContent.map(json => messageFactory.createMessage("", json).get)
+    val rows = jsonContent.map(json => recordFactory.createRecord("", json).get)
     assert(rows.size == 3)
 
-    assert(rows(0) == new Message(Array("a.b.c", new Timestamp(
+    assert(rows(0) == new Record(Array("a.b.c", new Timestamp(
       new GregorianCalendar(2017, 0, 1, 11, 43, 55).getTimeInMillis), "facebook", "New York", 0.1, 3L)))
 
-    assert(rows(1) == new Message(Array("x.y.z", new Timestamp(
+    assert(rows(1) == new Record(Array("x.y.z", new Timestamp(
       new GregorianCalendar(2017, 0, 3, 12, 13, 0).getTimeInMillis), "google", "Boston", 11.1, 5L)))
 
-    assert(rows(2) == new Message(Array("q.w.e", new Timestamp(
+    assert(rows(2) == new Record(Array("q.w.e", new Timestamp(
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 8.0, 1L)))
   }
 }

@@ -12,9 +12,6 @@ import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
 
 class KafkaStreamSource(config: JobConf) extends StreamSource(config) {
 
-  @transient
-  lazy val log = org.apache.log4j.Logger.getLogger(getClass)
-
   val kafkaConf = config.table.realTime.kafka.get
 
   val offsetStore = OffsetStore.create(config)
@@ -24,7 +21,7 @@ class KafkaStreamSource(config: JobConf) extends StreamSource(config) {
       ssc,
       Map("metadata.broker.list" -> kafkaConf.brokers.mkString(",")),
       offsetStore.loadOrFetch(),
-      (m: MessageAndMetadata[String, String]) => messageFactory.createMessage(m.topic, m.message()).get)
+      (m: MessageAndMetadata[String, String]) => recordFactory.createRecord(m.topic, m.message()).get)
   }
 
   override protected def uncacheRDD(rdd: RDD[Row]): Unit = {

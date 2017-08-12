@@ -28,7 +28,7 @@ object Configs {
                           kafka: Option[KafkaConf] = None,
                           parseSpec: Option[ParseSpecConf] = None,
                           windowDuration: Option[Period] = None,
-                          messageFactoryClass: Option[String] = None) extends Serializable
+                          recordFactoryClass: Option[String] = None) extends Serializable
 
   case class DimensionConf(name: String,
                            `type`: Option[String] = Some("string"),
@@ -63,5 +63,15 @@ object Configs {
   def parseTableConf(json: String): TableConf = {
     implicit val formats = DefaultFormats ++ JodaSerializers.all
     read[TableConf](json)
+  }
+
+  def readConfig(args: Array[String]): JobConf = {
+    val cmdArgs = CmdArgs.parse(args)
+    val consul = new ConsulClient(cmdArgs.consulHost, cmdArgs.consulPort, cmdArgs.consulToken)
+    JobConf(
+      consulClient = consul,
+      consulPrefix = cmdArgs.consulPrefix,
+      table = parseTableConf(consul.kvGet(s"${cmdArgs.consulPrefix}/${cmdArgs.table}/table"))
+    )
   }
 }

@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.streaming
+package com.github.viyadb.spark.batch
 
 import java.util.TimeZone
 
@@ -7,13 +7,13 @@ import com.github.viyadb.spark.Configs.{JobConf, parseTableConf}
 import com.github.viyadb.spark.util.{ConsulClient, DirectOutputCommitter}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 /**
-  * Main entrance of the Spark streaming application
+  * Main entrance of the Spark batch application
   */
 class Job {
-  protected def appName() = "ViyaDB Streaming"
+
+  protected def appName() = "ViyaDB Batch"
 
   protected def kryoRegistrator(): Class[_] = {
     classOf[KryoRegistrator]
@@ -21,7 +21,6 @@ class Job {
 
   protected def sparkConf(): SparkConf = {
     new SparkConf().setAppName(appName())
-      .set("spark.cleaner.ttl", "3600")
       .set("spark.rdd.compress", "true")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("spark.kryoserializer.buffer.max", "512m")
@@ -31,26 +30,15 @@ class Job {
       .set("spark.hadoop.mapred.output.committer.class", classOf[DirectOutputCommitter].getName)
   }
 
-  protected def createStreamingContext(config: JobConf): StreamingContext = {
-    val spark = SparkSession.builder().config(sparkConf())
+  protected def createSparkSession(config: JobConf): SparkSession = {
+    SparkSession.builder().config(sparkConf())
       .enableHiveSupport()
       .getOrCreate()
-
-    new StreamingContext(spark.sparkContext,
-      config.table.realTime.windowDuration.map(p => Seconds(p.toStandardSeconds.getSeconds))
-        .getOrElse(Seconds(5)))
   }
 
   def run(args: Array[String]): Unit = {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-
     val config = Configs.readConfig(args)
-    val ssc = createStreamingContext(config)
-
-    StreamSource.create(config).start(ssc)
-
-    ssc.start()
-    ssc.awaitTermination()
   }
 }
 

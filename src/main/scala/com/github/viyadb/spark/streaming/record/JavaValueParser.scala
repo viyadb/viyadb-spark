@@ -1,8 +1,9 @@
-package com.github.viyadb.spark.streaming.message
+package com.github.viyadb.spark.streaming.record
 
 import java.sql.Timestamp
 
-class JavaValueParser(nullNumericAsZero: Boolean = true, nullStringAsEmpty: Boolean = true) {
+class JavaValueParser(nullNumericAsZero: Boolean = true,
+                      nullStringAsEmpty: Boolean = true) extends Serializable {
 
   def parseInt(value: Object): Integer = {
     value match {

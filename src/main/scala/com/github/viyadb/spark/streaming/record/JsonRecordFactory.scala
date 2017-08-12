@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.streaming.message
+package com.github.viyadb.spark.streaming.record
 
 import java.util
 
@@ -10,32 +10,30 @@ import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider
 import com.jayway.jsonpath.{Configuration, JsonPath}
 import org.apache.spark.sql.Row
 
-class JsonMessageFactory(config: JobConf) extends MessageFactory(config) {
+class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
 
-  @transient
   private val jsonPathConf = Configuration.builder()
     .jsonProvider(new JacksonJsonProvider())
     .mappingProvider(new JacksonMappingProvider())
     .options(util.EnumSet.of(com.jayway.jsonpath.Option.SUPPRESS_EXCEPTIONS))
     .build()
 
-  @transient
   private val jsonMapper = new ObjectMapper()
 
-  @transient
-  private val jsonPaths = getFieldExtractPaths().map(paths => paths.map(path => JsonPath.compile(path)))
+  private val jsonPaths = getColumnMapping().map(paths => paths.map(path => JsonPath.compile(path)))
 
-  @transient
   private val typeReference = new TypeReference[java.util.Map[String, Object]]() {}
 
-  override def createMessage(meta: String, content: String): Option[Row] = {
+  override def createRecord(meta: String, content: String): Option[Row] = {
     val doc = jsonMapper.readValue[java.util.Map[String, Object]](content, typeReference)
 
-    createMessage(
-      jsonPaths.map(paths => paths.map(path =>
-        path.read(doc.asInstanceOf[Object], jsonPathConf).asInstanceOf[Object]
-      )).getOrElse(
-        messageSchema.fields.map(f => doc.get(f.name))
+    Some(
+      parseJavaObjects(
+        jsonPaths.map(paths => paths.map(path =>
+          path.read(doc.asInstanceOf[Object], jsonPathConf).asInstanceOf[Object]
+        )).getOrElse(
+          schema.fields.map(f => doc.get(f.name))
+        )
       )
     )
   }

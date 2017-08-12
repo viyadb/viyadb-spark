@@ -1,13 +1,13 @@
-package com.github.viyadb.spark.streaming.message
+package com.github.viyadb.spark.record
 
 import org.apache.spark.sql.Row
 
 /**
-  * Message represented as Spark's Row
+  * Event represented as Spark's Row
   *
-  * @param values Parsed message field values
+  * @param values Parsed record field values
   */
-class Message(val values: Array[Any]) extends Row {
+class Record(val values: Array[Any]) extends Row {
 
   protected def this() = this(null)
 
@@ -19,5 +19,5 @@ class Message(val values: Array[Any]) extends Row {
 
   override def toSeq: Seq[Any] = values.clone()
 
-  override def copy(): Message = this
+  override def copy(): Record = this
 }

@@ -1,12 +1,9 @@
-package com.github.viyadb.spark.streaming
+package com.github.viyadb.spark.batch
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
-import com.github.viyadb.spark.streaming.kafka.OffsetStore.{ConsulOffsetStore, FileSystemOffsetStore}
-import com.github.viyadb.spark.streaming.kafka.{KafkaStreamSource, OffsetStore}
-import com.github.viyadb.spark.streaming.record.{JsonRecordFactory, RecordFactory, TsvRecordFactory}
 import com.github.viyadb.spark.util.ConsulClient
 import org.apache.spark.streaming.receiver.Receiver
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
@@ -26,18 +23,10 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[KafkaConf])
     kryo.register(classOf[OffsetStoreConf])
     kryo.register(classOf[Processor])
-    kryo.register(classOf[StreamingProcessor])
+    kryo.register(classOf[BatchProcessor])
     kryo.register(classOf[ProcessorChain])
     kryo.register(classOf[Aggregator])
-    kryo.register(classOf[OffsetStore])
-    kryo.register(classOf[FileSystemOffsetStore])
-    kryo.register(classOf[ConsulOffsetStore])
-    kryo.register(classOf[StreamSource])
-    kryo.register(classOf[KafkaStreamSource])
     kryo.register(classOf[Record])
-    kryo.register(classOf[RecordFactory])
-    kryo.register(classOf[JsonRecordFactory])
-    kryo.register(classOf[TsvRecordFactory])
     kryo.register(classOf[Array[Receiver[_]]])
 
     kryo.register(classOf[Period])

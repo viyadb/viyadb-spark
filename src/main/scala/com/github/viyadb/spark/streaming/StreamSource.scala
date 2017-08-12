@@ -3,7 +3,7 @@ package com.github.viyadb.spark.streaming
 import com.github.viyadb.spark.Configs.JobConf
 import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.streaming.kafka.KafkaStreamSource
-import com.github.viyadb.spark.streaming.message.MessageFactory
+import com.github.viyadb.spark.streaming.record.RecordFactory
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
@@ -17,14 +17,11 @@ import org.apache.spark.streaming.{StreamingContext, Time}
   */
 abstract class StreamSource(config: JobConf) {
 
-  @transient
-  lazy protected val messageFactory = MessageFactory.create(config)
+  lazy protected val recordFactory = RecordFactory.create(config)
 
-  @transient
   lazy protected val processor = Processor.create(config).getOrElse(new StreamingProcessor(config))
 
-  @transient
-  lazy protected val saver = new MicroBatchSaver(config)
+  lazy protected val saver = new MicroBatchSaver(config, recordFactory)
 
   /**
     * Method for initializing DStream
@@ -52,7 +49,7 @@ abstract class StreamSource(config: JobConf) {
     * @return data frame
     */
   protected def createDataFrame(rdd: RDD[Row]): DataFrame = {
-    messageFactory.createDataFrame(rdd)
+    recordFactory.createDataFrame(rdd)
   }
 
   /**
