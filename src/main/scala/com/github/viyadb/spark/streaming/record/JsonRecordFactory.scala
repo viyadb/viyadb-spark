@@ -32,7 +32,7 @@ class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
         jsonPaths.map(paths => paths.map(path =>
           path.read(doc.asInstanceOf[Object], jsonPathConf).asInstanceOf[Object]
         )).getOrElse(
-          schema.fields.map(f => doc.get(f.name))
+          inputSchema.fields.map(f => doc.get(f.name))
         )
       )
     )

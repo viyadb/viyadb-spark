@@ -1,11 +1,12 @@
 package com.github.viyadb.spark.batch
 
-import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.Configs.{JobConf, PartitionConf}
 import com.github.viyadb.spark.processing.Processor
-import com.github.viyadb.spark.util.FileSystemUtil
+import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat}
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
   * Processes micro-batch data produced by the streaming processes
@@ -18,12 +19,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
   ).getOrElse(new BatchProcessor(config))
 
-  /**
-    * Finds out what batches are not processed yet
-    *
-    * @return list of batch timestamps
-    */
-  private def batchesToProcess(): Seq[Long] = {
+  private def nextUnprocessedBatch: Option[Long] = {
     val periodMillis = config.table.batch.batchDurationInMillis
     val currentBatch = Math.floor(System.currentTimeMillis / periodMillis).toLong * periodMillis
 
@@ -32,9 +28,90 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
         .map(_.substring(3).toLong)
     }
 
-    val processedBatches = getBatchTimestamps(config.batchPrefix()).toSet
-    getBatchTimestamps(config.realtimePrefix())
-      .filter(ts => !processedBatches.contains(ts) && (ts != currentBatch))
+    val realtimeBatches = getBatchTimestamps(config.realtimePrefix)
+    val processedBatches = getBatchTimestamps(config.batchPrefix)
+    if (processedBatches.isEmpty) {
+      realtimeBatches.sorted.headOption
+    } else {
+      realtimeBatches.filter(ts => (ts > realtimeBatches.max) && (ts != currentBatch)).sorted.headOption
+    }
+  }
+
+  private def previousBatch(ts: Long): Option[Long] = {
+    val periodMillis = config.table.batch.batchDurationInMillis
+    Some(Math.floor(ts - 1 / periodMillis).toLong * periodMillis)
+      .filter(ts => FileSystemUtil.exists(s"${config.batchPrefix}/dt=${ts}"))
+  }
+
+  /**
+    * Processes real-time data, and writes it in an unpartitioned way
+    */
+  protected def processBatch(spark: SparkSession, batch: Long, targetPath: String): Unit = {
+    val sourcePath = s"${config.realtimePrefix}/dt=${batch}/**/*.gz"
+    logInfo(s"Processing ${sourcePath} => ${targetPath}")
+
+    val df = recordFormat.loadDataFrame(spark, sourcePath)
+
+    val unionDf = previousBatch(batch).map { prevPatch =>
+      val prevPatchPath = s"${config.batchPrefix}/dt=${prevPatch}/**/*.gz"
+      logInfo(s"Loading previous batch ${prevPatchPath}")
+      recordFormat.loadDataFrame(spark, prevPatchPath)
+    }
+      .map(_.union(df))
+      .getOrElse(df)
+
+    FileSystemUtil.delete(targetPath)
+
+    processor.process(unionDf).rdd
+      .map(recordFormat.toTsvLine(_)).saveAsTextFile(targetPath, classOf[GzipCodec])
+  }
+
+  /**
+    * Repartition processed data
+    */
+  protected def partitionBatch(spark: SparkSession, batch: Long,
+                               sourcePath: String, targetPath: String,
+                               partitionConf: PartitionConf): Map[Any, Int] = {
+
+    logInfo(s"Partitioning ${sourcePath} => ${targetPath}")
+    var df = recordFormat.loadDataFrame(spark, sourcePath)
+
+    val hashColumn = partitionConf.hashColumn.getOrElse(false)
+    val partColumn = if (hashColumn) "__viyadb_part_col" else partitionConf.column
+    if (hashColumn) {
+      df = df.withColumn(partColumn, pmod(crc32(col(partitionConf.column)), lit(partitionConf.numPartitions)))
+    }
+    val dropColumns = if (hashColumn) 1 else 0
+
+    val rowStats = df.groupBy(partitionConf.column)
+      .agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
+
+    val bins = BinPackAlgorithm.packBins(rowStats, partitionConf.numPartitions).filter(_.nonEmpty)
+      .zipWithIndex.flatMap { case (bins, index) =>
+      bins.map { case (elems, _) =>
+        (elems, index)
+      }
+    }.toMap
+
+    def getPartition(value: Any) = bins.getOrElse(value, 0)
+
+    val getPartitionUdf = udf((value: Any) => getPartition(value))
+
+    val partNumColumn = "__viyadb_part_num"
+    df = df.withColumn(partNumColumn, getPartitionUdf(col(partColumn)))
+      .repartition(col(partNumColumn))
+      .drop(partNumColumn)
+
+    df = config.table.batch.sortColumns.map(sortColumns =>
+      df.sortWithinPartitions(sortColumns.map(col): _*)
+    ).getOrElse(df)
+
+    df.rdd
+      .map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", recordFormat.toTsvLine(row, dropColumns)))
+      .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
+        classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
+
+    bins
   }
 
   /**
@@ -43,18 +120,17 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     * @param spark Spark session
     */
   def start(spark: SparkSession): Unit = {
-    batchesToProcess().par.foreach { ts =>
-      val sourceDir = s"${config.realtimePrefix()}/dt=${ts}"
-      val targetDir = s"${config.batchPrefix()}/dt=${ts}"
-      logInfo(s"${sourceDir} => ${targetDir}")
+    nextUnprocessedBatch.foreach { batch =>
+      val targetPath = s"${config.batchPrefix}/dt=${batch}"
 
-      val df = recordFormat.loadDataFrame(spark, s"${sourceDir}/**")
-      FileSystemUtil.delete(targetDir)
-
-      processor.process(df)
-        .rdd
-        .map(recordFormat.toTsvLine(_))
-        .saveAsTextFile(targetDir, classOf[GzipCodec])
+      if (config.table.batch.partitioning.isEmpty) {
+        processBatch(spark, batch, targetPath)
+      } else {
+        val tmpPath = s"${config.batchPrefix}/dt=${batch}/_unpart"
+        processBatch(spark, batch, tmpPath)
+        partitionBatch(spark, batch, s"${tmpPath}/*.gz", targetPath, config.table.batch.partitioning.get)
+        FileSystemUtil.delete(tmpPath)
+      }
     }
   }
 }

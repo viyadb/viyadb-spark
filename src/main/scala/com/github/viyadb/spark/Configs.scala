@@ -1,6 +1,7 @@
 package com.github.viyadb.spark
 
 import com.github.viyadb.spark.util.{ConsulClient, JodaSerializers}
+import org.apache.spark.internal.Logging
 import org.joda.time.{Interval, Period}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization.read
@@ -8,7 +9,7 @@ import org.json4s.jackson.Serialization.read
 /**
   * Table configuration classes and parser utility
   */
-object Configs {
+object Configs extends Logging {
 
   case class OffsetStoreConf(`type`: String = "consul", fsPath: String) extends Serializable
 
@@ -46,8 +47,14 @@ object Configs {
                         max: Option[Long] = None,
                         `type`: String) extends Serializable
 
+  case class PartitionConf(column: String,
+                           numPartitions: Int,
+                           hashColumn: Option[Boolean] = Some(false)) extends Serializable
+
   case class BatchConf(batchDuration: Option[Period] = None,
                        keepInterval: Option[Interval] = None,
+                       partitioning: Option[PartitionConf] = None,
+                       sortColumns: Option[Seq[String]] = None,
                        processorClass: Option[String] = None) extends Serializable {
 
     def batchDurationInMillis(): Long = {
@@ -95,10 +102,12 @@ object Configs {
   def readConfig(args: Array[String]): JobConf = {
     val cmdArgs = CmdArgs.parse(args)
     val consul = new ConsulClient(cmdArgs.consulHost, cmdArgs.consulPort, cmdArgs.consulToken)
-    JobConf(
+    val config = JobConf(
       consulClient = consul,
       consulPrefix = cmdArgs.consulPrefix,
       table = parseTableConf(consul.kvGet(s"${cmdArgs.consulPrefix}/${cmdArgs.table}/table"))
     )
+    logInfo(s"Using configuration: ${config}")
+    config
   }
 }

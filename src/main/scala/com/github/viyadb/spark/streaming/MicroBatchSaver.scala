@@ -16,14 +16,19 @@ class MicroBatchSaver(config: JobConf, recordFormat: RecordFormat) extends Seria
     import df.sqlContext.implicits._
 
     val periodMillis = config.table.batch.batchDurationInMillis
+    val truncatedTime = if (config.table.timeColumn.isEmpty) {
+      Some(Math.floor(time.milliseconds / periodMillis).toLong * periodMillis)
+    } else {
+      None
+    }
 
     df.map(row => {
-      val timestamp = config.table.timeColumn.map(timeColumn =>
-        row.getAs[java.util.Date](timeColumn.name).getTime).getOrElse(time.milliseconds)
-
-      val truncatedTime = Math.floor(timestamp / periodMillis).toLong * periodMillis
-
-      (s"dt=${truncatedTime}/mb=${time.milliseconds}", recordFormat.toTsvLine(row))
+      val targetDt = truncatedTime.getOrElse(
+        Math.floor(
+          row.getAs[java.util.Date](config.table.timeColumn.get.name).getTime / periodMillis)
+          .toLong * periodMillis
+      )
+      (s"dt=${targetDt}/mb=${time.milliseconds}", recordFormat.toTsvLine(row))
     })
       .rdd
       .saveAsHadoopFile(config.realtimePrefix(), classOf[String], classOf[String],

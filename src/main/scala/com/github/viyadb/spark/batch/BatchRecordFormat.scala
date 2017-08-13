@@ -26,6 +26,6 @@ class BatchRecordFormat(config: JobConf) extends RecordFormat(config) {
     val rdd = spark.sparkContext.textFile(path)
       .map(c => parseInputRow(c.split("\t")).asInstanceOf[Row])
 
-    spark.createDataFrame(rdd, schema)
+    spark.createDataFrame(rdd, inputSchema)
   }
 }

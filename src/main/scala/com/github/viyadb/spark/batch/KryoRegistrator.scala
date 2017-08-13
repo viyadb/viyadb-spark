@@ -35,6 +35,7 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(Class.forName("org.joda.time.DurationFieldType$StandardDurationFieldType"))
 
     kryo.register(classOf[Array[Int]])
+    kryo.register(classOf[Array[Array[Byte]]])
     kryo.register(classOf[Array[Object]])
     kryo.register(classOf[scala.collection.mutable.WrappedArray.ofRef[_]])
     kryo.register(classOf[Array[org.apache.spark.sql.catalyst.InternalRow]])

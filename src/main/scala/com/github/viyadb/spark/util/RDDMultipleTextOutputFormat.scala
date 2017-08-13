@@ -1,8 +1,8 @@
 package com.github.viyadb.spark.util
 
-import org.apache.hadoop.fs.{FileAlreadyExistsException, FileSystem}
+import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapred.{FileAlreadyExistsException, JobConf}
 import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
 
 /**

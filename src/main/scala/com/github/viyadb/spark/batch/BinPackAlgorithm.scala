@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.partitioning
+package com.github.viyadb.spark.batch
 
 import scala.collection.mutable.ListBuffer
 

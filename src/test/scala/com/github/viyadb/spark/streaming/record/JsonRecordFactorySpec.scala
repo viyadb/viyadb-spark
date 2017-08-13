@@ -97,7 +97,9 @@ class JsonRecordFactorySpec extends UnitSpec {
             ))
           ))
         ),
-        batch = BatchConf(),
+        batch = BatchConf(
+          partitioning = None
+        ),
         dimensions = Seq(
           DimensionConf(name = "app"),
           DimensionConf(name = "date", `type` = Some("time"), format = Some("%Y-%m-%d %H:%M:%S")),

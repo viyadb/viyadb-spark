@@ -25,7 +25,7 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
     */
   def getColumnMapping(): Option[Array[String]] = {
     parseSpec.fieldMapping
-      .map(mapping => schema.fields.map(f => mapping.get(f.name).get))
+      .map(mapping => inputSchema.fields.map(f => mapping.get(f.name).get))
   }
 
   /**
@@ -35,7 +35,7 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
     * @return record
     */
   def parseJavaObjects(values: Array[_ <: Object]): Record = {
-    new Record(indexedFields.map { case (field, fieldIdx) =>
+    new Record(indexedInputSchema.map { case (field, fieldIdx) =>
       val value = values(fieldIdx)
       field.dataType match {
         case IntegerType => javaValueParser.parseInt(value)
@@ -65,7 +65,7 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
     * @return Spark data frame
     */
   def createDataFrame(rdd: RDD[Row]): DataFrame = {
-    SparkSession.builder().getOrCreate().createDataFrame(rdd, schema)
+    SparkSession.builder().getOrCreate().createDataFrame(rdd, inputSchema)
   }
 }
 

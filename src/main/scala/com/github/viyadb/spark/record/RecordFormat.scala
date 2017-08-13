@@ -15,9 +15,13 @@ import org.apache.spark.sql.types._
   */
 abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
 
-  protected val schema = getSchema()
+  protected val inputSchema = getInputSchema()
 
-  protected val indexedFields = schema.fields.zipWithIndex
+  protected val indexedInputSchema = inputSchema.fields.zipWithIndex
+
+  protected val outputSchema = getOutputSchema()
+
+  protected val indexedOutputSchema = outputSchema.fields.zipWithIndex
 
   protected val timeFormats = getTimeFormats()
 
@@ -61,13 +65,13 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
     */
   private def getInputColumnIndices(): Array[Int] = {
     val inputCols = getInputColumns().zipWithIndex.toMap
-    schema.fields.map(field => inputCols.get(field.name).get)
+    inputSchema.fields.map(field => inputCols.get(field.name).get)
   }
 
   /**
     * @return Schema corresponding to input columns
     */
-  private def getSchema(): StructType = {
+  private def getInputSchema(): StructType = {
     val column2Type = (
       config.table.dimensions.map(dim => (dim.name, StructField(dim.name, dimensionDataType(dim)))) ++
         config.table.metrics.map(metric => (metric.name, StructField(metric.name, metricDataType(metric))))
@@ -77,10 +81,20 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
   }
 
   /**
+    * @return Schema corresponding to input columns
+    */
+  private def getOutputSchema(): StructType = {
+    StructType(
+      config.table.dimensions.map(dim => StructField(dim.name, dimensionDataType(dim))) ++
+        config.table.metrics.map(metric => StructField(metric.name, metricDataType(metric)))
+    )
+  }
+
+  /**
     * @return time formatters per field index
     */
   private def getTimeFormats(): Array[Option[SimpleDateFormat]] = {
-    schema.fields.map { field =>
+    inputSchema.fields.map { field =>
       config.table.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType())
         .flatMap(_.format)
         .map(format => TimeUtil.strptime2JavaFormat(format))
@@ -102,7 +116,7 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
     */
   def parseInputRow(values: Array[String]): Record = {
     new Record(
-      indexedFields.map { case (field, fieldIdx) =>
+      indexedInputSchema.map { case (field, fieldIdx) =>
         val value = values(columnIndices(fieldIdx))
         field.dataType match {
           case IntegerType => value.toInt
@@ -130,18 +144,23 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
   /**
     * Converts data frame row to TSV line
     *
-    * @param row Spark's data frame row
+    * @param row       Spark's data frame row
+    * @param dropRight Omit last N columns from the result
     * @return
     */
-  def toTsvLine(row: Row): String = {
-    row.toSeq.zipWithIndex.map { case (value, fieldIdx) =>
-      value match {
-        case s: String => s.replaceAll("[\t\n\r\u0000\\\\]", "").trim
-        case null => ""
-        case d: java.sql.Date => formatTime(d, fieldIdx)
-        case t: java.sql.Timestamp => formatTime(t, fieldIdx)
-        case any => any
+  def toTsvLine(row: Row, dropRight: Int = 0): String = {
+    val lastIdx = row.size - dropRight
+    indexedOutputSchema.map { case (field, fieldIdx) =>
+      if (fieldIdx < lastIdx) {
+        val value = row(fieldIdx)
+        field.dataType match {
+          case StringType => value.asInstanceOf[String].replaceAll("[\t\n\r\u0000\\\\]", "").trim
+          case TimestampType => formatTime(value.asInstanceOf[java.util.Date], fieldIdx)
+          case _ => value
+        }
+      } else {
+        None
       }
-    }.mkString("\t")
+    }.filter(_ != None).mkString("\t")
   }
 }
