@@ -6,6 +6,7 @@ import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
@@ -66,6 +67,17 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
       .map(recordFormat.toTsvLine(_)).saveAsTextFile(targetPath, classOf[GzipCodec])
   }
 
+  protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int) = {
+    val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
+
+    BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
+      .zipWithIndex.flatMap { case (bins, index) =>
+      bins.map { case (elems, _) =>
+        (elems, index)
+      }
+    }.toMap
+  }
+
   /**
     * Repartition processed data
     */
@@ -82,18 +94,9 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
       df = df.withColumn(partColumn, pmod(crc32(col(partitionConf.column)), lit(partitionConf.numPartitions)))
     }
     val dropColumns = if (hashColumn) 1 else 0
+    val partitions = calculatePartitoins(df, partColumn, partitionConf.numPartitions)
 
-    val rowStats = df.groupBy(partitionConf.column)
-      .agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
-
-    val bins = BinPackAlgorithm.packBins(rowStats, partitionConf.numPartitions).filter(_.nonEmpty)
-      .zipWithIndex.flatMap { case (bins, index) =>
-      bins.map { case (elems, _) =>
-        (elems, index)
-      }
-    }.toMap
-
-    def getPartition(value: Any) = bins.getOrElse(value, 0)
+    def getPartition(value: Any) = partitions.getOrElse(value, 0)
 
     val getPartitionUdf = udf((value: Any) => getPartition(value))
 
@@ -111,7 +114,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 
-    bins
+    partitions
   }
 
   /**

@@ -18,6 +18,7 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[JobConf])
     kryo.register(classOf[TableConf])
     kryo.register(classOf[BatchConf])
+    kryo.register(classOf[PartitionConf])
     kryo.register(classOf[MetricConf])
     kryo.register(classOf[DimensionConf])
     kryo.register(classOf[RealTimeConf])

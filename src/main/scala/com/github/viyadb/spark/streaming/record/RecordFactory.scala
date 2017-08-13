@@ -71,7 +71,7 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
 
 object RecordFactory extends Logging {
   def create(config: JobConf): RecordFactory = {
-    val recordFactory = config.table.realTime.recordFactoryClass.map(c =>
+    config.table.realTime.recordFactoryClass.map(c =>
       Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[RecordFactory]
     ).getOrElse(
       config.table.realTime.parseSpec.map(parseSpec =>
@@ -84,7 +84,5 @@ object RecordFactory extends Logging {
         new RecordFactory(config)
       )
     )
-    logInfo(s"Created record factory: ${recordFactory.getClass.getName}")
-    recordFactory
   }
 }
