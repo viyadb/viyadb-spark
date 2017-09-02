@@ -91,7 +91,7 @@ object OffsetStore {
 
   class ConsulOffsetStore(config: JobConf) extends OffsetStore(config) {
 
-    val key = s"${config.consulPrefix.stripSuffix("/")}/${config.table}/kafka/offsets"
+    val key = s"${config.consulPrefix.stripSuffix("/")}/${config.table.name}/kafka/offsets"
 
     override protected def load(): Map[TopicAndPartition, Long] = {
       Try {
