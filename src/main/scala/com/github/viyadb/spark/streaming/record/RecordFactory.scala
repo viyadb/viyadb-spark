@@ -11,7 +11,8 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
 
   private val parseSpec = config.table.realTime.parseSpec.getOrElse(ParseSpecConf(""))
 
-  private val javaValueParser = new JavaValueParser(parseSpec.nullNumericAsZero, parseSpec.nullStringAsEmpty)
+  private val javaValueParser = new JavaValueParser(
+    parseSpec.nullNumericAsZero.getOrElse(true), parseSpec.nullStringAsEmpty.getOrElse(true))
 
   override def getInputColumns(): Seq[String] = {
     config.table.realTime.parseSpec.flatMap(_.columns).getOrElse(
@@ -71,7 +72,7 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
 
 object RecordFactory extends Logging {
   def create(config: JobConf): RecordFactory = {
-    config.table.realTime.recordFactoryClass.map(c =>
+    val factory = config.table.realTime.recordFactoryClass.map(c =>
       Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[RecordFactory]
     ).getOrElse(
       config.table.realTime.parseSpec.map(parseSpec =>
@@ -84,5 +85,7 @@ object RecordFactory extends Logging {
         new RecordFactory(config)
       )
     )
+    logInfo(s"Created record factory: ${factory.getClass.getName}")
+    factory
   }
 }

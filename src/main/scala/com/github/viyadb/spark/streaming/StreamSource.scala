@@ -15,7 +15,7 @@ import org.apache.spark.streaming.{StreamingContext, Time}
   *
   * @param config Job configuration
   */
-abstract class StreamSource(config: JobConf) {
+abstract class StreamSource(config: JobConf) extends Serializable {
 
   lazy protected val recordFactory = RecordFactory.create(config)
 

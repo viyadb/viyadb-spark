@@ -1,6 +1,6 @@
 package com.github.viyadb.spark.streaming.kafka
 
-import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.Configs.{JobConf, OffsetStoreConf}
 import com.github.viyadb.spark.util.FileSystemUtil
 import kafka.common.TopicAndPartition
 import org.apache.spark.internal.Logging
@@ -46,7 +46,7 @@ abstract class OffsetStore(config: JobConf) extends Logging with Serializable {
     val kafkaUtilsInstance = KafkaUtils.getClass.getField("MODULE$").get(null)
 
     getFromOffsets.invoke(kafkaUtilsInstance, kafkaCluster.asInstanceOf[Object], kafkaParams,
-      config.table.realTime.kafka.get.topics).asInstanceOf[Map[TopicAndPartition, Long]]
+      config.table.realTime.kafka.get.topics.toSet).asInstanceOf[Map[TopicAndPartition, Long]]
   }
 
   /**
@@ -74,7 +74,7 @@ object OffsetStore {
 
   class FileSystemOffsetStore(config: JobConf) extends OffsetStore(config) {
 
-    val offsetPath = config.table.realTime.kafka.get.offsetStore.fsPath
+    val offsetPath = config.table.realTime.kafka.get.offsetStore.get.fsPath.get
 
     override protected def load(): Map[TopicAndPartition, Long] = {
       Try {
@@ -91,7 +91,7 @@ object OffsetStore {
 
   class ConsulOffsetStore(config: JobConf) extends OffsetStore(config) {
 
-    val key = s"${config.consulPrefix.stripSuffix("/")}/kafka/offsets"
+    val key = s"${config.consulPrefix.stripSuffix("/")}/${config.table}/kafka/offsets"
 
     override protected def load(): Map[TopicAndPartition, Long] = {
       Try {
@@ -107,7 +107,7 @@ object OffsetStore {
   }
 
   def create(config: JobConf): OffsetStore = {
-    config.table.realTime.kafka.get.offsetStore.`type` match {
+    config.table.realTime.kafka.get.offsetStore.getOrElse(new OffsetStoreConf).`type` match {
       case "fs" => new FileSystemOffsetStore(config)
       case "consul" => new ConsulOffsetStore(config)
       case _ => throw new IllegalArgumentException("Unknown Kafka offset store type!")

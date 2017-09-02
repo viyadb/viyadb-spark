@@ -172,7 +172,6 @@
                             <artifactSet>
                                 <excludes>
                                     <exclude>com.amazonaws</exclude>
-                                    <exclude>com.yammer.metrics</exclude>
                                     <exclude>com.101tec</exclude>
                                     <exclude>junit:junit</exclude>
                                     <exclude>org.apache.maven:lib:tests</exclude>
@@ -184,8 +183,7 @@
                                     <exclude>org.apache.curator</exclude>
                                     <exclude>org.apache.httpcomponents</exclude>
                                     <exclude>org.apache.commons</exclude>
-                                    <exclude>org.apache.spark</exclude>
-                                    <exclude>org.apache.kafka</exclude>
+                                    <exclude>org.apache.spark:spark-tags_${scala.binary.version}</exclude>
                                     <exclude>org.spark-project.spark</exclude>
                                     <exclude>org.xerial.snappy</exclude>
                                     <exclude>net.jpountz.lz4</exclude>

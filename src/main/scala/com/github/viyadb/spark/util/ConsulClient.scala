@@ -21,7 +21,7 @@ class ConsulClient(hostname: String = "localhost", port: Int = 8500, token: Opti
   }
 
   def kvPut(path: String, data: String) = {
-    if (!Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}")
+    if (!Http(s"http://${hostname}:${port}/v1/kv/${path.stripPrefix("/")}")
       .put(data)
       .option(HttpOptions.connTimeout(3000))
       .header("content-type", "application/json").asString.is2xx) {

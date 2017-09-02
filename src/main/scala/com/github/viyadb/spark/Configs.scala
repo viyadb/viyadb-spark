@@ -11,17 +11,19 @@ import org.json4s.jackson.Serialization.read
   */
 object Configs extends Logging {
 
-  case class OffsetStoreConf(`type`: String = "consul", fsPath: String) extends Serializable
+  case class OffsetStoreConf(`type`: String = "consul", fsPath: Option[String] = None) extends Serializable
 
-  case class KafkaConf(topics: Seq[String], brokers: Seq[String], offsetStore: OffsetStoreConf) extends Serializable
+  case class KafkaConf(topics: Seq[String],
+                       brokers: Seq[String],
+                       offsetStore: Option[OffsetStoreConf] = None) extends Serializable
 
   case class ParseSpecConf(format: String,
                            delimiter: Option[String] = None,
                            columns: Option[Seq[String]] = None,
                            fieldMapping: Option[Map[String, String]] = None,
-                           skipBadRows: Boolean = false,
-                           nullNumericAsZero: Boolean = true,
-                           nullStringAsEmpty: Boolean = true) extends Serializable
+                           skipBadRows: Option[Boolean] = Some(false),
+                           nullNumericAsZero: Option[Boolean] = Some(true),
+                           nullStringAsEmpty: Option[Boolean] = Some(true)) extends Serializable
 
   case class TimeColumnConf(name: String = "timestamp", format: Option[String] = None) extends Serializable
 
