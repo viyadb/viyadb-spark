@@ -14,6 +14,38 @@ Streaming process reads events in real-time, pre-aggregates them, and dumps load
 to a deep storage. Batch process creates historical view of data containing events from previous batch plus
 events created afterwards in the streaming process.
 
+The process can be graphically presented like this:
+
+
+                                           +----------------+
+                                           |                |
+                                           |  Streaming Job |
+                                           |                |
+                                           +----------------+
+                                                   |
+                                                   |  writes current events
+                                                   v
+             +------------------+         +--------+---------+
+             | Previous Period  |         | Current Period   |
+             | Real-Time Events |--+      | Real-Time Events |
+             +------------------+  |      +------------------+
+                                   |
+             +------------------+  |      +------------------+
+             | Historical       |  |      | Historical       |
+             | Events           |  |      | Events           |
+             +------------------+  |      +------------------+      ...
+                |                  |                   ^
+     -----------|------------------|-------------------|----------------------------->
+                |                  |                   |                Timeline
+                |                  v                   |
+                |              +-------------+         |
+                |              |             |         |  joins previous period events
+                +------------> |  Batch Job  |---------+  and all the historical events
+                               |             |            that existed before
+                               +-------------+
+
+
+
 ## Prerequisites
 
  * [Consul](http://www.consul.io)
