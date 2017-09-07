@@ -22,14 +22,16 @@ class MicroBatchSaver(config: JobConf, recordFormat: RecordFormat) extends Seria
       None
     }
 
-    df.map(row => {
-      val targetDt = truncatedTime.getOrElse(
-        Math.floor(
-          row.getAs[java.util.Date](config.table.timeColumn.get.name).getTime / periodMillis)
-          .toLong * periodMillis
-      )
-      (s"dt=${targetDt}/mb=${time.milliseconds}", recordFormat.toTsvLine(row))
-    })
+    df.mapPartitions(partition =>
+      partition.map(row => {
+        val targetDt = truncatedTime.getOrElse(
+          Math.floor(
+            row.getAs[java.util.Date](config.table.timeColumn.get.name).getTime / periodMillis)
+            .toLong * periodMillis
+        )
+        (s"dt=${targetDt}/mb=${time.milliseconds}", recordFormat.toTsvLine(row))
+      })
+    )
       .rdd
       .saveAsHadoopFile(config.realtimePrefix(), classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])

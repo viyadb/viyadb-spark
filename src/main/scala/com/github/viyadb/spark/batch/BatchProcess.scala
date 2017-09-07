@@ -64,7 +64,8 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     FileSystemUtil.delete(targetPath)
 
     processor.process(unionDf).rdd
-      .map(recordFormat.toTsvLine(_)).saveAsTextFile(targetPath, classOf[GzipCodec])
+      .mapPartitions(partition => partition.map(recordFormat.toTsvLine(_)))
+      .saveAsTextFile(targetPath, classOf[GzipCodec])
   }
 
   protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int) = {
@@ -110,7 +111,8 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     ).getOrElse(df)
 
     df.rdd
-      .map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", recordFormat.toTsvLine(row, dropColumns)))
+      .mapPartitions(p =>
+        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", recordFormat.toTsvLine(row, dropColumns))))
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 
