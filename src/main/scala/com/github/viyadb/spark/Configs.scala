@@ -107,7 +107,7 @@ object Configs extends Logging {
     val config = JobConf(
       consulClient = consul,
       consulPrefix = cmdArgs.consulPrefix,
-      table = parseTableConf(consul.kvGet(s"${cmdArgs.consulPrefix}/${cmdArgs.table}/table"))
+      table = parseTableConf(consul.kvGet(s"${cmdArgs.consulPrefix}/tables/${cmdArgs.table}/config"))
     )
     logInfo(s"Using configuration: ${config}")
     config

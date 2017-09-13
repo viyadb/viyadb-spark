@@ -50,7 +50,7 @@ The process can be graphically presented like this:
 
  * [Consul](http://www.consul.io)
  
-Table configuration must present in Consul under the key: `<consul prefix>/<table name>/table`
+Table configuration must present in Consul under the key: `<consul prefix>/tables/<table name>/config`
 
 ## Building
 
