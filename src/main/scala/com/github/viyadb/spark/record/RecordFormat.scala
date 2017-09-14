@@ -1,9 +1,8 @@
 package com.github.viyadb.spark.record
 
-import java.text.SimpleDateFormat
-
 import com.github.viyadb.spark.Configs.{DimensionConf, JobConf, MetricConf}
 import com.github.viyadb.spark.util.TimeUtil
+import com.github.viyadb.spark.util.TimeUtil.TimeFormat
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
@@ -93,7 +92,7 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
   /**
     * @return time formatters per field index
     */
-  private def getTimeFormats(): Array[Option[SimpleDateFormat]] = {
+  private def getTimeFormats(): Array[Option[TimeFormat]] = {
     inputSchema.fields.map { field =>
       config.table.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType())
         .flatMap(_.format)
@@ -103,7 +102,7 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
   }
 
   protected def parseTime(value: String, fieldIdx: Int): java.sql.Timestamp = {
-    timeFormats(fieldIdx).map(format => new java.sql.Timestamp(format.parse(value).getTime)).getOrElse(
+    timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
       new java.sql.Timestamp(value.toLong)
     )
   }
@@ -131,12 +130,17 @@ abstract class RecordFormat(config: JobConf) extends Serializable with Logging {
   /**
     * Format date time according to the specified format
     *
-    * @param time     Date time object
+    * @param time     Timestamp object
     * @param fieldIdx Schema field index
     * @return
     */
   protected def formatTime(time: java.util.Date, fieldIdx: Int): String = {
-    timeFormats(fieldIdx).map(format => format.format(time)).getOrElse(
+    timeFormats(fieldIdx).map(format => format.format(
+      time match {
+        case t: java.sql.Timestamp => t
+        case d => new java.sql.Timestamp(d.getTime)
+      }
+    )).getOrElse(
       time.getTime.toString
     )
   }
