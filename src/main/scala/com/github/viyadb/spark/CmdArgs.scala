@@ -3,7 +3,7 @@ package com.github.viyadb.spark
 import scopt._
 
 case class CmdArgs(consulHost: String = "localhost", consulPort: Int = 8500,
-                   consulToken: Option[String] = None, consulPrefix: String = "viyadb-cluster",
+                   consulToken: Option[String] = None, consulPrefix: String = "viyadb",
                    table: String = "")
 
 object CmdArgs {
@@ -20,7 +20,7 @@ object CmdArgs {
         c.copy(consulToken = Some(x))).text("Consul token if required")
 
       opt[String]("consul-prefix").optional().action((x, c) =>
-        c.copy(consulToken = Some(x))).text("Consul key-value prefix path (default: viyadb-cluster)")
+        c.copy(consulToken = Some(x))).text("Consul key-value prefix path (default: viyadb)")
 
       opt[String]("table").action((x, c) =>
         c.copy(table = x)).text("Name of the table to process")
