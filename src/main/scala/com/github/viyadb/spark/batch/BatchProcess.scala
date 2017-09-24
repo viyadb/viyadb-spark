@@ -6,8 +6,9 @@ import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Serialization.write
 
 /**
   * Processes micro-batch data produced by the streaming processes
@@ -120,6 +121,18 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
   }
 
   /**
+    * Save partitionining scheme to Consul
+    */
+  def savePartitions(partitions: Map[Any, Int], batch: Long) = {
+    val key = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/partitions/${batch}"
+
+    implicit val formats = DefaultFormats
+    config.consulClient.kvPut(key, write(partitions))
+
+    // TODO: remove old entries
+  }
+
+  /**
     * Starts the batch processing
     *
     * @param spark Spark session
@@ -133,7 +146,10 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
       } else {
         val tmpPath = s"${config.batchPrefix}/dt=${batch}/_unpart"
         processBatch(spark, batch, tmpPath)
-        partitionBatch(spark, batch, s"${tmpPath}/*.gz", targetPath, config.table.batch.partitioning.get)
+
+        val partitions = partitionBatch(spark, batch, s"${tmpPath}/*.gz", targetPath, config.table.batch.partitioning.get)
+        savePartitions(partitions, batch)
+
         FileSystemUtil.delete(tmpPath)
       }
     }
