@@ -110,6 +110,9 @@ object Configs extends Logging {
       table = parseTableConf(consul.kvGet(s"${cmdArgs.consulPrefix}/tables/${cmdArgs.table}/config"))
     )
     logInfo(s"Using configuration: ${config}")
+    if (config.table.name != cmdArgs.table) {
+      throw new IllegalArgumentException("Command line --table argument doesn't match the configuration")
+    }
     config
   }
 }

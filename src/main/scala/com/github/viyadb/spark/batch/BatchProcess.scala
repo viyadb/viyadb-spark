@@ -70,6 +70,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
   }
 
   protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int) = {
+    logInfo(s"Calculating partitioining")
     val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
 
     BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
@@ -124,6 +125,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     * Save partitionining scheme to Consul
     */
   def savePartitions(partitions: Map[Any, Int], batch: Long) = {
+    logInfo(s"Saving partitioning scheme to Consul")
     val key = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/partitions/${batch}"
 
     implicit val formats = DefaultFormats
