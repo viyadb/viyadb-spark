@@ -39,8 +39,8 @@ The process can be graphically presented like this:
                 |                  |                   |                Timeline
                 |                  v                   |
                 |              +-------------+         |
-                |              |             |         |  joins previous period events
-                +------------> |  Batch Job  |---------+  and all the historical events
+                |              |             |         |  unions previous period events
+                +------------> |  Batch Job  |---------+  with all the historical events
                                |             |            that existed before
                                +-------------+
 
