@@ -73,7 +73,7 @@ object Configs extends Logging {
                        deepStorePath: String) extends Serializable
 
   case class JobConf(consulClient: ConsulClient = new ConsulClient(),
-                     consulPrefix: String = "viyadb-cluster", table: TableConf) extends Serializable {
+                     consulPrefix: String = "viyadb", table: TableConf) extends Serializable {
 
     /**
       * @return prefix under which batch process artifacts will be saved

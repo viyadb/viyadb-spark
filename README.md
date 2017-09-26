@@ -81,7 +81,7 @@ mvn package
 
 ```bash
 spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.1-uberjar.jar \
-    --consul-host "<consul host>" --consul-prefix "viyadb-cluster" \
+    --consul-host "<consul host>" --consul-prefix "viyadb" \
     --table "<table name>"
 ```
 
