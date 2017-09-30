@@ -9,6 +9,7 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, Time}
+import org.json4s.jackson.Serialization.write
 
 /**
   * Abstract stream source and generic methods for events processing
@@ -65,6 +66,16 @@ abstract class StreamSource(config: JobConf) extends Serializable {
   }
 
   /**
+    * Saves info about this micro-batch into Consul
+    *
+    * @param time Micro-batch time
+    */
+  protected def saveBatchInfo(time: Time) = {
+    val prefix = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/realtime"
+    config.consulClient.kvPut(s"${prefix}/latest", time.toString)
+  }
+
+  /**
     * Main processing method for the input RDD, which is called once per received batch.
     *
     * @param rdd  Input RDD
@@ -75,6 +86,7 @@ abstract class StreamSource(config: JobConf) extends Serializable {
     val df = createDataFrame(cachedRdd)
     saveDataFrame(processDataFrame(df), time)
     uncacheRDD(rdd)
+    saveBatchInfo(time)
   }
 
   /**

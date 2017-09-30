@@ -122,14 +122,20 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
   }
 
   /**
-    * Save partitionining scheme to Consul
+    * Saves info about this batch into Consul
+    *
+    * @param partitions Partitioning scheme
+    * @param batch      Batch time
     */
-  def savePartitions(partitions: Map[Any, Int], batch: Long) = {
-    logInfo(s"Saving partitioning scheme to Consul")
-    val key = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/partitions/${batch}"
+  protected def saveBatchInfo(partitions: Map[Any, Int], batch: Long) = {
+    logInfo(s"Saving batch info to Consul")
 
     implicit val formats = DefaultFormats
-    config.consulClient.kvPut(key, write(partitions))
+
+    val prefix = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/batch"
+
+    config.consulClient.kvPut(s"${prefix}/latest", batch.toString)
+    config.consulClient.kvPut(s"${prefix}/${batch}/partitions", write(partitions))
 
     // TODO: remove old entries
   }
@@ -150,7 +156,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
         processBatch(spark, batch, tmpPath)
 
         val partitions = partitionBatch(spark, batch, s"${tmpPath}/*.gz", targetPath, config.table.batch.partitioning.get)
-        savePartitions(partitions, batch)
+        saveBatchInfo(partitions, batch)
 
         FileSystemUtil.delete(tmpPath)
       }
