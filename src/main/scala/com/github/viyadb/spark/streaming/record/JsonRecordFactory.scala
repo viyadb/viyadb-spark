@@ -9,6 +9,7 @@ import com.jayway.jsonpath.spi.json.JacksonJsonProvider
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider
 import com.jayway.jsonpath.{Configuration, JsonPath}
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types._
 
 class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
 
@@ -28,6 +29,33 @@ class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
   private val typeReference = new SerializableTypeReference()
 
   private val jsonMapper = new ObjectMapper()
+
+  private val javaValueParser = new JavaValueParser(
+    parseSpec.nullNumericAsZero.getOrElse(true), parseSpec.nullStringAsEmpty.getOrElse(true))
+
+  /**
+    * Parses record from Java types values
+    *
+    * @param values Java types values
+    * @return record
+    */
+  protected def parseJavaObjects(values: Array[_ <: Object]): Record = {
+    new Record(indexedInputSchema.map { case (field, fieldIdx) =>
+      val value = values(fieldIdx)
+      field.dataType match {
+        case ByteType => javaValueParser.parseByte(value)
+        case ShortType => javaValueParser.parseShort(value)
+        case IntegerType => javaValueParser.parseInt(value)
+        case LongType => javaValueParser.parseLong(value)
+        case FloatType => javaValueParser.parseFloat(value)
+        case DoubleType => javaValueParser.parseDouble(value)
+        case TimestampType => javaValueParser.parseTimestamp(value).getOrElse(
+          parseTime(javaValueParser.parseString(value), fieldIdx)
+        )
+        case StringType => javaValueParser.parseString(value)
+      }
+    })
+  }
 
   override def createRecord(meta: String, content: String): Option[Row] = {
     val doc = jsonMapper.readValue[java.util.Map[String, Object]](content, typeReference)

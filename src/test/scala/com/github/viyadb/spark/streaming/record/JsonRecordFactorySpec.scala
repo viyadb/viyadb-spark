@@ -5,7 +5,6 @@ import java.util.GregorianCalendar
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import com.github.viyadb.spark.record.Record
 
 class JsonRecordFactorySpec extends UnitSpec {
 

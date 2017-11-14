@@ -34,11 +34,21 @@ object Configs extends Logging {
                           recordFactoryClass: Option[String] = None,
                           processorClass: Option[String] = None) extends Serializable
 
+  trait ColumnConf {
+    def inputField(): String
+    def name: String
+  }
+
   case class DimensionConf(name: String,
+                           field: Option[String] = None,
                            `type`: Option[String] = Some("string"),
                            max: Option[Long] = None,
                            format: Option[String] = None,
-                           granularity: Option[String] = None) extends Serializable {
+                           granularity: Option[String] = None) extends Serializable with ColumnConf {
+
+    def inputField(): String = {
+      field.getOrElse(name)
+    }
 
     def isTimeType(): Boolean = {
       `type`.exists(t => (t == "time") || (t == "microtime"))
@@ -46,8 +56,14 @@ object Configs extends Logging {
   }
 
   case class MetricConf(name: String,
+                        field: Option[String] = None,
                         max: Option[Long] = None,
-                        `type`: String) extends Serializable
+                        `type`: String) extends Serializable with ColumnConf {
+
+    def inputField(): String = {
+      field.getOrElse(name)
+    }
+  }
 
   case class PartitionConf(column: String,
                            numPartitions: Int,
@@ -70,7 +86,12 @@ object Configs extends Logging {
                        dimensions: Seq[DimensionConf],
                        metrics: Seq[MetricConf],
                        timeColumn: Option[TimeColumnConf] = None,
-                       deepStorePath: String) extends Serializable
+                       deepStorePath: String) extends Serializable {
+
+    def hasCountMetric(): Boolean = {
+      metrics.filter(_.`type` == "count").nonEmpty
+    }
+  }
 
   case class JobConf(consulClient: ConsulClient = new ConsulClient(),
                      consulPrefix: String = "viyadb", table: TableConf) extends Serializable {

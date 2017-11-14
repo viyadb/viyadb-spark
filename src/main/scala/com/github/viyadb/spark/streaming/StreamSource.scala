@@ -9,7 +9,6 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, Time}
-import org.json4s.jackson.Serialization.write
 
 /**
   * Abstract stream source and generic methods for events processing
@@ -24,7 +23,7 @@ abstract class StreamSource(config: JobConf) extends Serializable {
     Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
   ).getOrElse(new StreamingProcessor(config))
 
-  lazy protected val saver = new MicroBatchSaver(config, recordFactory)
+  lazy protected val saver = new MicroBatchSaver(config)
 
   /**
     * Method for initializing DStream

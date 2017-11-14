@@ -5,6 +5,24 @@ import java.sql.Timestamp
 class JavaValueParser(nullNumericAsZero: Boolean = true,
                       nullStringAsEmpty: Boolean = true) extends Serializable {
 
+  def parseByte(value: Object): Byte = {
+    value match {
+      case n: java.lang.Byte => n
+      case n: java.lang.Number => n.byteValue()
+      case s: java.lang.String => java.lang.Byte.parseByte(s)
+      case null => if (nullNumericAsZero) 0 else throw new NullPointerException()
+    }
+  }
+
+  def parseShort(value: Object): Short = {
+    value match {
+      case n: java.lang.Short => n
+      case n: java.lang.Number => n.shortValue()
+      case s: java.lang.String => java.lang.Short.parseShort(s)
+      case null => if (nullNumericAsZero) 0 else throw new NullPointerException()
+    }
+  }
+
   def parseInt(value: Object): Integer = {
     value match {
       case n: java.lang.Integer => n
@@ -20,6 +38,15 @@ class JavaValueParser(nullNumericAsZero: Boolean = true,
       case n: java.lang.Number => n.intValue()
       case s: java.lang.String => java.lang.Long.parseLong(s)
       case null => if (nullNumericAsZero) 0L else throw new NullPointerException()
+    }
+  }
+
+  def parseFloat(value: Object): Float = {
+    value match {
+      case n: java.lang.Float => n
+      case n: java.lang.Number => n.floatValue()
+      case s: java.lang.String => java.lang.Float.parseFloat(s)
+      case null => if (nullNumericAsZero) 0.0f else throw new NullPointerException()
     }
   }
 

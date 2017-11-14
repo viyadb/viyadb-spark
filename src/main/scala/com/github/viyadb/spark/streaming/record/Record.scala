@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.record
+package com.github.viyadb.spark.streaming.record
 
 import org.apache.spark.sql.Row
 

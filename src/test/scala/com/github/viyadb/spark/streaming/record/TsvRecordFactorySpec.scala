@@ -5,7 +5,7 @@ import java.util.GregorianCalendar
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import com.github.viyadb.spark.record.Record
+import com.github.viyadb.spark.batch.OutputFormat
 
 class TsvRecordFactorySpec extends UnitSpec {
 
@@ -56,10 +56,12 @@ class TsvRecordFactorySpec extends UnitSpec {
     assert(rows(2) == new Record(Array("q.w.e", new Timestamp(
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 10L, 6, 8.0)))
 
+    val outputFormat = new OutputFormat(config)
+
     assert(Set(
       "a.b.c\t2017-01-01 11:43:55\tfacebook\tNew York\t30\t4\t0.1",
       "x.y.z\t2017-01-03 12:13:00\tgoogle\tBoston\t50\t5\t11.1",
       "q.w.e\t2016-12-12 01:20:01\tfacebook\tSan Francisco\t10\t6\t8.0"
-    ) == rows.map(r => recordFactory.toTsvLine(r)).toSet)
+    ) == rows.map(r => outputFormat.toTsvLine(r)).toSet)
   }
 }

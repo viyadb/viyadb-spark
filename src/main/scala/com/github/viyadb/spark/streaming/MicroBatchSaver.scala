@@ -1,7 +1,7 @@
 package com.github.viyadb.spark.streaming
 
 import com.github.viyadb.spark.Configs.JobConf
-import com.github.viyadb.spark.record.RecordFormat
+import com.github.viyadb.spark.batch.OutputFormat
 import com.github.viyadb.spark.util.RDDMultipleTextOutputFormat
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.sql.DataFrame
@@ -10,7 +10,9 @@ import org.apache.spark.streaming.Time
 /**
   * Saves micro-batch data frame as TSV files into separate directories per current batch period and micro-batch time.
   */
-class MicroBatchSaver(config: JobConf, recordFormat: RecordFormat) extends Serializable {
+class MicroBatchSaver(config: JobConf) extends Serializable {
+
+  val outputFormat = new OutputFormat(config)
 
   def save(df: DataFrame, time: Time): Unit = {
     import df.sqlContext.implicits._
@@ -29,7 +31,7 @@ class MicroBatchSaver(config: JobConf, recordFormat: RecordFormat) extends Seria
             row.getAs[java.util.Date](config.table.timeColumn.get.name).getTime / periodMillis)
             .toLong * periodMillis
         )
-        (s"dt=${targetDt}/mb=${time.milliseconds}", recordFormat.toTsvLine(row))
+        (s"dt=${targetDt}/mb=${time.milliseconds}", outputFormat.toTsvLine(row))
       })
     )
       .rdd

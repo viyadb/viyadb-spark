@@ -2,8 +2,8 @@ package com.github.viyadb.spark.util
 
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapred.{FileAlreadyExistsException, JobConf}
 import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
+import org.apache.hadoop.mapred.{FileAlreadyExistsException, JobConf}
 
 /**
   * Writes pair RDD two different directories prefixes denoted by keys

@@ -3,9 +3,7 @@ package com.github.viyadb.spark.batch
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
-import com.github.viyadb.spark.record.Record
 import com.github.viyadb.spark.util.ConsulClient
-import org.apache.spark.streaming.receiver.Receiver
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
 
 class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
@@ -25,9 +23,9 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[OffsetStoreConf])
     kryo.register(classOf[Processor])
     kryo.register(classOf[BatchProcessor])
+    kryo.register(classOf[OutputFormat])
     kryo.register(classOf[ProcessorChain])
     kryo.register(classOf[Aggregator])
-    kryo.register(classOf[Record])
 
     kryo.register(classOf[Period])
     kryo.register(classOf[PeriodType])

@@ -1,6 +1,7 @@
 package com.github.viyadb.spark.processing
 
 import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.batch.OutputFormat
 import org.apache.spark.sql.DataFrame
 
 /**
@@ -8,9 +9,9 @@ import org.apache.spark.sql.DataFrame
   *
   * @param config Job configuration
   */
-class FieldSelector(config: JobConf) extends Processor(config) {
+class OutputFieldsSelector(config: JobConf) extends Processor(config) {
 
-  private val selectCols = config.table.dimensions.map(_.name) ++ config.table.metrics.map(_.name)
+  private val selectCols = OutputFormat.columnNames(config)
 
   override def process(df: DataFrame): DataFrame = {
     df.select(selectCols.head, selectCols.tail: _*)

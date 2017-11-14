@@ -1,53 +1,77 @@
 package com.github.viyadb.spark.streaming.record
 
 import com.github.viyadb.spark.Configs.{JobConf, ParseSpecConf}
-import com.github.viyadb.spark.record.{Record, RecordFormat}
+import com.github.viyadb.spark.batch.OutputFormat
+import com.github.viyadb.spark.util.TimeUtil
+import com.github.viyadb.spark.util.TimeUtil.TimeFormat
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
-class RecordFactory(config: JobConf) extends RecordFormat(config) {
+class RecordFactory(config: JobConf) extends Serializable with Logging {
 
-  private val parseSpec = config.table.realTime.parseSpec.getOrElse(ParseSpecConf(""))
+  protected val parseSpec = config.table.realTime.parseSpec.getOrElse(ParseSpecConf(""))
 
-  private val javaValueParser = new JavaValueParser(
-    parseSpec.nullNumericAsZero.getOrElse(true), parseSpec.nullStringAsEmpty.getOrElse(true))
+  protected val inputSchema = getInputSchema()
 
-  override def getInputColumns(): Seq[String] = {
+  protected val indexedInputSchema = inputSchema.fields.zipWithIndex
+
+  protected val timeFormats = getTimeFormats()
+
+  protected val columnIndices = getInputColumnIndices()
+
+  /**
+    * @return mapping between schema and column indices
+    */
+  protected def getInputColumnIndices(): Array[Int] = {
+    val inputCols = getInputColumns().zipWithIndex.toMap
+    inputSchema.fields.map(field => inputCols.get(field.name).get)
+  }
+
+  /**
+    * @return time formatters per field index
+    */
+  protected def getTimeFormats(): Array[Option[TimeFormat]] = {
+    inputSchema.fields.map { field =>
+      config.table.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType())
+        .flatMap(_.format)
+        .map(format => TimeUtil.strptime2JavaFormat(format))
+        .headOption
+    }
+  }
+
+  protected def getInputColumns(): Seq[String] = {
     config.table.realTime.parseSpec.flatMap(_.columns).getOrElse(
       config.table.dimensions.map(_.name) ++ config.table.metrics.filter(_.`type` != "count").map(_.name)
     )
   }
 
   /**
+    * @return Schema corresponding to input columns
+    */
+  protected def getInputSchema(): StructType = {
+    val column2Type = (
+      config.table.dimensions.map(dim => (dim.name, StructField(dim.name, OutputFormat.dimensionDataType(dim)))) ++
+        config.table.metrics.map(metric => (metric.inputField(), StructField(metric.inputField(), OutputFormat.metricDataType(metric))))
+      ).toMap
+
+    StructType(getInputColumns().map(col => column2Type.get(col)).filter(_.nonEmpty).map(_.get))
+  }
+
+  /**
     * @return mapping between schema field names and paths used to extract fields from an hierarchical structure
     *         (like Json, Avro, etc)
     */
-  def getColumnMapping(): Option[Array[String]] = {
+  protected def getColumnMapping(): Option[Array[String]] = {
     parseSpec.fieldMapping
       .map(mapping => inputSchema.fields.map(f => mapping.get(f.name).get))
   }
 
-  /**
-    * Parses record from Java types values
-    *
-    * @param values Java types values
-    * @return record
-    */
-  def parseJavaObjects(values: Array[_ <: Object]): Record = {
-    new Record(indexedInputSchema.map { case (field, fieldIdx) =>
-      val value = values(fieldIdx)
-      field.dataType match {
-        case IntegerType => javaValueParser.parseInt(value)
-        case LongType => javaValueParser.parseLong(value)
-        case DoubleType => javaValueParser.parseDouble(value)
-        case TimestampType => javaValueParser.parseTimestamp(value).getOrElse(
-          parseTime(javaValueParser.parseString(value), fieldIdx)
-        )
-        case StringType => javaValueParser.parseString(value)
-      }
-    })
+  protected def parseTime(value: String, fieldIdx: Int): java.sql.Timestamp = {
+    timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
+      new java.sql.Timestamp(value.toLong)
+    )
   }
 
   /**
@@ -59,12 +83,6 @@ class RecordFactory(config: JobConf) extends RecordFormat(config) {
     */
   def createRecord(meta: String, content: String): Option[Row] = None
 
-  /**
-    * Create Spark data frame for RDD of records
-    *
-    * @param rdd RDD of records (rows)
-    * @return Spark data frame
-    */
   def createDataFrame(rdd: RDD[Row]): DataFrame = {
     SparkSession.builder().getOrCreate().createDataFrame(rdd, inputSchema)
   }

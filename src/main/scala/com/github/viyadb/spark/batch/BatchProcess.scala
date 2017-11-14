@@ -15,11 +15,13 @@ import org.json4s.jackson.Serialization.write
   */
 class BatchProcess(config: JobConf) extends Serializable with Logging {
 
-  lazy protected val recordFormat = new BatchRecordFormat(config)
+  lazy protected val microBatchLoader = new MicroBatchLoader(config)
 
   lazy private val processor = config.table.batch.processorClass.map(c =>
     Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
   ).getOrElse(new BatchProcessor(config))
+
+  lazy private val outputFormat = new OutputFormat(config)
 
   private def nextUnprocessedBatch: Option[Long] = {
     val periodMillis = config.table.batch.batchDurationInMillis
@@ -52,12 +54,12 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     val sourcePath = s"${config.realtimePrefix}/dt=${batch}/**/*.gz"
     logInfo(s"Processing ${sourcePath} => ${targetPath}")
 
-    val df = recordFormat.loadDataFrame(spark, sourcePath)
+    val df = microBatchLoader.loadDataFrame(spark, sourcePath)
 
     val unionDf = previousBatch(batch).map { prevPatch =>
       val prevPatchPath = s"${config.batchPrefix}/dt=${prevPatch}/**/*.gz"
       logInfo(s"Loading previous batch ${prevPatchPath}")
-      recordFormat.loadDataFrame(spark, prevPatchPath)
+      microBatchLoader.loadDataFrame(spark, prevPatchPath)
     }
       .map(_.union(df))
       .getOrElse(df)
@@ -65,7 +67,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
     FileSystemUtil.delete(targetPath)
 
     processor.process(unionDf).rdd
-      .mapPartitions(partition => partition.map(recordFormat.toTsvLine(_)))
+      .mapPartitions(partition => partition.map(outputFormat.toTsvLine(_)))
       .saveAsTextFile(targetPath, classOf[GzipCodec])
   }
 
@@ -89,7 +91,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
                                partitionConf: PartitionConf): Map[Any, Int] = {
 
     logInfo(s"Partitioning ${sourcePath} => ${targetPath}")
-    var df = recordFormat.loadDataFrame(spark, sourcePath)
+    var df = microBatchLoader.loadDataFrame(spark, sourcePath)
 
     val hashColumn = partitionConf.hashColumn.getOrElse(false)
     val partColumn = if (hashColumn) "__viyadb_part_col" else partitionConf.column
@@ -114,7 +116,7 @@ class BatchProcess(config: JobConf) extends Serializable with Logging {
 
     df.rdd
       .mapPartitions(p =>
-        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", recordFormat.toTsvLine(row, dropColumns))))
+        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", outputFormat.toTsvLine(row, dropColumns))))
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 
