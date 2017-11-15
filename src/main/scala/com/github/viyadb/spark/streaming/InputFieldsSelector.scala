@@ -12,11 +12,10 @@ import org.apache.spark.sql.functions._
   */
 class InputFieldsSelector(config: JobConf) extends Processor(config) {
 
-  private val selectCols = (config.table.dimensions ++ config.table.metrics.filter(_.`type` != "count")).map(field =>
-    col(field.inputField()).as(field.name))
-
-
   override def process(df: DataFrame): DataFrame = {
+    val selectCols = (config.table.dimensions ++ config.table.metrics.filter(_.`type` != "count")).map(field =>
+      col(field.inputField()).as(field.name))
+
     df.select(selectCols: _ *)
   }
 }
