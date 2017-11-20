@@ -17,7 +17,6 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[MetricConf])
     kryo.register(classOf[DimensionConf])
     kryo.register(classOf[RealTimeConf])
-    kryo.register(classOf[TimeColumnConf])
     kryo.register(classOf[ParseSpecConf])
     kryo.register(classOf[KafkaConf])
     kryo.register(classOf[OffsetStoreConf])

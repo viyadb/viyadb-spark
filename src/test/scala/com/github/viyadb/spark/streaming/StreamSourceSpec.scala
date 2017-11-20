@@ -5,14 +5,14 @@ import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import com.github.viyadb.spark.streaming.StreamSourceSpec.{TestInputDStream, TestStreamSource}
+import com.github.viyadb.spark.streaming.StreamSourceSpec.TestStreamSource
 import com.github.viyadb.spark.streaming.record.RecordFactory
 import org.apache.commons.io.FileUtils
-import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.streaming.{Seconds, StreamingContext, Time}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.streaming.{Seconds, StreamingContext, Time}
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.scalatest.BeforeAndAfter
 
 object StreamSourceSpec {
@@ -106,21 +106,22 @@ class StreamSourceSpec extends UnitSpec with BeforeAndAfter {
           realTime = RealTimeConf(
             parseSpec = Some(ParseSpecConf(
               format = "tsv",
-              columns = Some(Seq("company", "dt", "stock_price"))
+              columns = Some(Seq("company", "timestamp", "stock_price"))
             )),
             streamSourceClass = Some(classOf[TestStreamSource].getName)
           ),
           batch = BatchConf(),
           dimensions = Seq(
             DimensionConf(name = "company"),
-            DimensionConf(name = "dt")
+            DimensionConf(name = "timestamp", `type` = Some("time"), format = Some("%Y-%m-%d"))
           ),
           metrics = Seq(
             MetricConf(name = "stock_price_sum", field = Some("stock_price"), `type` = "double_sum"),
             MetricConf(name = "stock_price_avg", field = Some("stock_price"), `type` = "double_avg"),
             MetricConf(name = "stock_price_max", field = Some("stock_price"), `type` = "double_max"),
             MetricConf(name = "count", `type` = "count")
-          )
+          ),
+          timeColumn = Some("timestamp")
         )
       )
 
@@ -133,7 +134,6 @@ class StreamSourceSpec extends UnitSpec with BeforeAndAfter {
       ssc.awaitTermination()
 
       val actual = ss.sparkContext.textFile(tmpDir.getAbsolutePath + "/*/*/*/*.gz")
-        //.map(row => row.split("\t"))
         .collect().sorted.mkString("\n")
 
       val expected = Array(

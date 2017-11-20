@@ -3,12 +3,15 @@ package com.github.viyadb.spark.streaming
 import com.github.viyadb.spark.Configs.JobConf
 import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.streaming.kafka.KafkaStreamSource
+import com.github.viyadb.spark.streaming.notifier.{MicroBatchInfo, MicroBatchNotifier}
 import com.github.viyadb.spark.streaming.record.RecordFactory
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, Time}
+import scala.collection.JavaConverters._
+
 
 /**
   * Abstract stream source and generic methods for events processing
@@ -23,7 +26,17 @@ abstract class StreamSource(config: JobConf) extends Serializable {
     Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
   ).getOrElse(new StreamingProcessor(config))
 
-  lazy protected val saver = new MicroBatchSaver(config)
+  lazy private val pathAccumulator = createPathAccumulator()
+
+  lazy protected val saver = new MicroBatchSaver(pathAccumulator, config)
+
+  lazy protected val notifier = config.table.realTime.notifierConf.map(MicroBatchNotifier.create(_)).headOption
+
+  private def createPathAccumulator() = {
+    val pathAccumulator = new PathAccumulator()
+    SparkSession.builder().getOrCreate().sparkContext.register(pathAccumulator, "Written paths")
+    pathAccumulator
+  }
 
   /**
     * Method for initializing DStream
@@ -65,6 +78,16 @@ abstract class StreamSource(config: JobConf) extends Serializable {
   }
 
   /**
+    * Sends a notification containing the micro-batch information
+    */
+  protected def sendNotification(time: Time) = {
+    notifier.foreach(n =>
+      n.notify(MicroBatchInfo(time.milliseconds, config.table.name, pathAccumulator.value.asScala))
+    )
+    pathAccumulator.reset()
+  }
+
+  /**
     * Saves info about this micro-batch into Consul
     *
     * @param time Micro-batch time
@@ -82,10 +105,13 @@ abstract class StreamSource(config: JobConf) extends Serializable {
     */
   protected def processRDD(rdd: RDD[Row], time: Time) = {
     val cachedRdd = cacheRDD(rdd)
+
     val df = createDataFrame(cachedRdd)
     saveDataFrame(processDataFrame(df), time)
     uncacheRDD(rdd)
+
     saveBatchInfo(time)
+    sendNotification(time)
   }
 
   /**

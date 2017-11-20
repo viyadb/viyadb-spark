@@ -25,14 +25,17 @@ object Configs extends Logging {
                            nullNumericAsZero: Option[Boolean] = Some(true),
                            nullStringAsEmpty: Option[Boolean] = Some(true)) extends Serializable
 
-  case class TimeColumnConf(name: String = "timestamp", format: Option[String] = None) extends Serializable
+  case class NotifierConf(topic: String = "viyadb-spark-batches",
+                          host: String,
+                          `type`: String) extends Serializable
 
   case class RealTimeConf(streamSourceClass: Option[String] = None,
                           kafka: Option[KafkaConf] = None,
                           parseSpec: Option[ParseSpecConf] = None,
                           windowDuration: Option[Period] = None,
                           recordFactoryClass: Option[String] = None,
-                          processorClass: Option[String] = None) extends Serializable
+                          processorClass: Option[String] = None,
+                          notifierConf: Option[NotifierConf] = None) extends Serializable
 
   trait ColumnConf {
     def inputField(): String
@@ -85,7 +88,7 @@ object Configs extends Logging {
                        batch: BatchConf,
                        dimensions: Seq[DimensionConf],
                        metrics: Seq[MetricConf],
-                       timeColumn: Option[TimeColumnConf] = None,
+                       timeColumn: Option[String] = None,
                        deepStorePath: String) extends Serializable {
 
     def hasCountMetric(): Boolean = {

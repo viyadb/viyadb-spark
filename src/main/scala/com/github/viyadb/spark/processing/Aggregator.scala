@@ -11,8 +11,7 @@ import org.apache.spark.sql.functions._
 case class Aggregator(config: JobConf) extends Processor(config) {
 
   override def process(df: DataFrame): DataFrame = {
-    val aggCols = (config.table.timeColumn.map(_.name).toSeq
-      ++ config.table.dimensions.map(_.name)
+    val aggCols = (config.table.dimensions.map(_.name)
       ++ config.table.metrics.filter(_.`type` == "bitset").map(_.name))
       .distinct.map(col(_))
 

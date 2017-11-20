@@ -6,6 +6,7 @@ import com.github.viyadb.spark.batch.OutputFormat
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
 import com.github.viyadb.spark.streaming.kafka.OffsetStore.{ConsulOffsetStore, FileSystemOffsetStore}
 import com.github.viyadb.spark.streaming.kafka.{KafkaStreamSource, OffsetStore}
+import com.github.viyadb.spark.streaming.notifier.{KafkaMicroBatchNotifier, MicroBatchNotifier}
 import com.github.viyadb.spark.streaming.record.{JsonRecordFactory, Record, RecordFactory, TsvRecordFactory}
 import com.github.viyadb.spark.util.ConsulClient
 import org.apache.spark.streaming.receiver.Receiver
@@ -22,8 +23,8 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[ColumnConf])
     kryo.register(classOf[MetricConf])
     kryo.register(classOf[DimensionConf])
+    kryo.register(classOf[NotifierConf])
     kryo.register(classOf[RealTimeConf])
-    kryo.register(classOf[TimeColumnConf])
     kryo.register(classOf[ParseSpecConf])
     kryo.register(classOf[KafkaConf])
     kryo.register(classOf[OffsetStoreConf])
@@ -41,6 +42,9 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[OutputFormat])
     kryo.register(classOf[JsonRecordFactory])
     kryo.register(classOf[TsvRecordFactory])
+    kryo.register(classOf[MicroBatchNotifier])
+    kryo.register(classOf[KafkaMicroBatchNotifier])
+    kryo.register(classOf[PathTracker])
     kryo.register(classOf[Array[Receiver[_]]])
 
     kryo.register(classOf[Period])
