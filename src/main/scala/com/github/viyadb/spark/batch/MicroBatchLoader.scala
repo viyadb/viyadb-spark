@@ -1,7 +1,7 @@
 package com.github.viyadb.spark.batch
 
-import com.github.viyadb.spark.Configs.JobConf
-import com.github.viyadb.spark.streaming.record.Record
+import com.github.viyadb.spark.Configs.TableConf
+import com.github.viyadb.spark.streaming.parser.Record
 import com.github.viyadb.spark.util.TimeUtil
 import com.github.viyadb.spark.util.TimeUtil.TimeFormat
 import org.apache.spark.rdd.RDD
@@ -10,12 +10,10 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
   * Utilities for loading real-time micro-batch data
-  *
-  * @param config Job configuration
   */
-class MicroBatchLoader(config: JobConf) {
+class MicroBatchLoader(tableConf: TableConf) extends Serializable {
 
-  protected val microBatchSchema = OutputFormat.schema(config)
+  protected val microBatchSchema = OutputSchema.schema(tableConf)
 
   protected val indexedMicroBatchSchema = microBatchSchema.fields.zipWithIndex
 
@@ -27,7 +25,7 @@ class MicroBatchLoader(config: JobConf) {
     * @return mapping between schema and column indices
     */
   protected def getInputColumnIndices(): Array[Int] = {
-    val inputCols = OutputFormat.columnNames(config).zipWithIndex.toMap
+    val inputCols = OutputSchema.columnNames(tableConf).zipWithIndex.toMap
     microBatchSchema.fields.map(field => inputCols.get(field.name).get)
   }
 
@@ -36,7 +34,7 @@ class MicroBatchLoader(config: JobConf) {
     */
   protected def getTimeFormats(): Array[Option[TimeFormat]] = {
     microBatchSchema.fields.map { field =>
-      config.table.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType())
+      tableConf.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType)
         .flatMap(_.format)
         .map(format => TimeUtil.strptime2JavaFormat(format))
         .headOption
@@ -75,12 +73,11 @@ class MicroBatchLoader(config: JobConf) {
   /**
     * Loads micro-batch data from given path as data frame
     *
-    * @param spark Spark session
-    * @param path  Path containing real-time data for a batch
+    * @param path Path containing real-time data for a batch
     * @return data frame
     */
-  def loadDataFrame(spark: SparkSession, path: String): DataFrame = {
-    val rdd = spark.sparkContext.textFile(path)
+  def loadDataFrame(path: String): DataFrame = {
+    val rdd = SparkSession.builder().getOrCreate().sparkContext.textFile(path)
       .mapPartitions(partition =>
         partition.map(content => parseInputRow(content.split("\t"))))
     createDataFrame(rdd)

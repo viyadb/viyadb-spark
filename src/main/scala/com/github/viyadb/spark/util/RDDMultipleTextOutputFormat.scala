@@ -14,7 +14,7 @@ class RDDMultipleTextOutputFormat extends MultipleTextOutputFormat[Any, Any] {
     NullWritable.get()
 
   override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String =
-    s"${key.asInstanceOf[String]}/${name}"
+    s"${key.asInstanceOf[String]}/$name"
 
   override def checkOutputSpecs(ignored: FileSystem, job: JobConf): Unit = {
     try {

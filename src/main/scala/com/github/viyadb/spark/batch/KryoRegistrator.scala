@@ -2,7 +2,9 @@ package com.github.viyadb.spark.batch
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
+import com.github.viyadb.spark.notifications.{FileNotifier, KafkaNotifier, Notifier}
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
+import com.github.viyadb.spark.streaming.PathTracker
 import com.github.viyadb.spark.util.ConsulClient
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
 
@@ -11,6 +13,7 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
   override def registerClasses(kryo: Kryo) {
     kryo.register(classOf[ConsulClient])
     kryo.register(classOf[JobConf])
+    kryo.register(classOf[IndexerConf])
     kryo.register(classOf[TableConf])
     kryo.register(classOf[BatchConf])
     kryo.register(classOf[PartitionConf])
@@ -18,13 +21,17 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[DimensionConf])
     kryo.register(classOf[RealTimeConf])
     kryo.register(classOf[ParseSpecConf])
-    kryo.register(classOf[KafkaConf])
-    kryo.register(classOf[OffsetStoreConf])
+    kryo.register(classOf[KafkaSourceConf])
     kryo.register(classOf[Processor])
     kryo.register(classOf[BatchProcessor])
-    kryo.register(classOf[OutputFormat])
+    kryo.register(classOf[OutputSchema])
     kryo.register(classOf[ProcessorChain])
     kryo.register(classOf[Aggregator])
+    kryo.register(classOf[PathTracker])
+    kryo.register(classOf[MicroBatchLoader])
+    kryo.register(classOf[Notifier[_]])
+    kryo.register(classOf[KafkaNotifier[_]])
+    kryo.register(classOf[FileNotifier[_]])
 
     kryo.register(classOf[Period])
     kryo.register(classOf[PeriodType])

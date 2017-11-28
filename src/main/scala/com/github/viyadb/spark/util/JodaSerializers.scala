@@ -29,9 +29,10 @@ object JodaSerializers {
   ))
 
   object IntervalSerializer {
-    def apply() = new ClassSerializer(new ClassType[Interval, String]() {
-      def unwrap(i: String)(implicit format: Formats) = Interval.parse(i)
-      def wrap(i: Interval)(implicit format: Formats) = i.toString
+    def apply() = ClassSerializer(new ClassType[Interval, String]() {
+      def unwrap(i: String)(implicit format: Formats): Interval = Interval.parse(i)
+
+      def wrap(i: Interval)(implicit format: Formats): String = i.toString
     })
   }
 
@@ -46,7 +47,7 @@ object JodaSerializers {
     def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), A] = {
       case (TypeInfo(Class, _), json) => json match {
         case JNull => null.asInstanceOf[A]
-        case xs: JValue if (xs.extractOpt[B].isDefined) => t.unwrap(xs.extract[B])
+        case xs: JValue if xs.extractOpt[B].isDefined => t.unwrap(xs.extract[B])
         case value => throw new MappingException(s"Can't convert $value to $Class")
       }
     }

@@ -1,167 +1,70 @@
 package com.github.viyadb.spark.batch
 
-import com.github.viyadb.spark.Configs.{JobConf, PartitionConf}
-import com.github.viyadb.spark.processing.Processor
-import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat}
-import org.apache.hadoop.io.compress.GzipCodec
+import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.batch.BatchProcess.BatchInfo
+import com.github.viyadb.spark.notifications.Notifier
+import com.github.viyadb.spark.streaming.StreamingProcess.MicroBatchInfo
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization.write
+import org.apache.spark.sql.SparkSession
 
 /**
   * Processes micro-batch data produced by the streaming processes
   */
-class BatchProcess(config: JobConf) extends Serializable with Logging {
+class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
 
-  lazy protected val microBatchLoader = new MicroBatchLoader(config)
+  lazy private val notifier: Notifier[BatchInfo] = Notifier.create(jobConf.indexer.batch.notifier)
 
-  lazy private val processor = config.table.batch.processorClass.map(c =>
-    Class.forName(c).getDeclaredConstructor(classOf[JobConf]).newInstance(config).asInstanceOf[Processor]
-  ).getOrElse(new BatchProcessor(config))
-
-  lazy private val outputFormat = new OutputFormat(config)
-
-  private def nextUnprocessedBatch: Option[Long] = {
-    val periodMillis = config.table.batch.batchDurationInMillis
+  /**
+    * Find unprocessed real-time micro-batches from the two notification channels
+    * that correspond to real-time and batch processes.
+    */
+  protected def unprocessedBatches(): Seq[(Long, Seq[String])] = {
+    val periodMillis = jobConf.indexer.batch.batchDurationInMillis
     val currentBatch = Math.floor(System.currentTimeMillis / periodMillis).toLong * periodMillis
 
-    def getBatchTimestamps(prefix: String): Seq[Long] = {
-      FileSystemUtil.list(prefix).map(_.getPath.getName).filter(_.startsWith("dt="))
-        .map(_.substring(3).toLong)
-    }
+    // Read last processed batch
+    val lastBatch = notifier.lastMessage.map(_.id).getOrElse(0L)
 
-    val realtimeBatches = getBatchTimestamps(config.realtimePrefix)
-    val processedBatches = getBatchTimestamps(config.batchPrefix)
-    if (processedBatches.isEmpty) {
-      realtimeBatches.sorted.headOption
-    } else {
-      realtimeBatches.filter(ts => (ts > realtimeBatches.max) && (ts != currentBatch)).sorted.headOption
-    }
-  }
-
-  private def previousBatch(ts: Long): Option[Long] = {
-    val periodMillis = config.table.batch.batchDurationInMillis
-    Some(Math.floor(ts - 1 / periodMillis).toLong * periodMillis)
-      .filter(ts => FileSystemUtil.exists(s"${config.batchPrefix}/dt=${ts}"))
-  }
-
-  /**
-    * Processes real-time data, and writes it in an unpartitioned way
-    */
-  protected def processBatch(spark: SparkSession, batch: Long, targetPath: String): Unit = {
-    val sourcePath = s"${config.realtimePrefix}/dt=${batch}/**/*.gz"
-    logInfo(s"Processing ${sourcePath} => ${targetPath}")
-
-    val df = microBatchLoader.loadDataFrame(spark, sourcePath)
-
-    val unionDf = previousBatch(batch).map { prevPatch =>
-      val prevPatchPath = s"${config.batchPrefix}/dt=${prevPatch}/**/*.gz"
-      logInfo(s"Loading previous batch ${prevPatchPath}")
-      microBatchLoader.loadDataFrame(spark, prevPatchPath)
-    }
-      .map(_.union(df))
-      .getOrElse(df)
-
-    FileSystemUtil.delete(targetPath)
-
-    processor.process(unionDf).rdd
-      .mapPartitions(partition => partition.map(outputFormat.toTsvLine(_)))
-      .saveAsTextFile(targetPath, classOf[GzipCodec])
-  }
-
-  protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int) = {
-    logInfo(s"Calculating partitioining")
-    val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
-
-    BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
-      .zipWithIndex.flatMap { case (bins, index) =>
-      bins.map { case (elems, _) =>
-        (elems, index)
+    def extractBatchIdFromPath(path: String): Long = {
+      val dtSegmentPattern = ".*/dt=(\\d+)/.*".r
+      path match {
+        case dtSegmentPattern(c) => c.toLong
+        case _ => throw new IllegalArgumentException(s"Can't extract batch ID from path: $path")
       }
-    }.toMap
-  }
-
-  /**
-    * Repartition processed data
-    */
-  protected def partitionBatch(spark: SparkSession, batch: Long,
-                               sourcePath: String, targetPath: String,
-                               partitionConf: PartitionConf): Map[Any, Int] = {
-
-    logInfo(s"Partitioning ${sourcePath} => ${targetPath}")
-    var df = microBatchLoader.loadDataFrame(spark, sourcePath)
-
-    val hashColumn = partitionConf.hashColumn.getOrElse(false)
-    val partColumn = if (hashColumn) "__viyadb_part_col" else partitionConf.column
-    if (hashColumn) {
-      df = df.withColumn(partColumn, pmod(crc32(col(partitionConf.column)), lit(partitionConf.numPartitions)))
     }
-    val dropColumns = if (hashColumn) 1 else 0
-    val partitions = calculatePartitoins(df, partColumn, partitionConf.numPartitions)
 
-    def getPartition(value: Any) = partitions.getOrElse(value, 0)
+    // Read all notifications send by the real-time process
+    val realTimeNotifier = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
+    val allBatches = realTimeNotifier.allMessages.flatMap { mbInfo =>
+      mbInfo.tables.flatMap { case (tableName, tableInfo) =>
+        tableInfo.paths.map(extractBatchIdFromPath(_)).map(batchId => (batchId, tableName))
+      }
+    }.groupBy(_._1).mapValues(_.map(_._2).distinct)
 
-    val getPartitionUdf = udf((value: Any) => getPartition(value))
-
-    val partNumColumn = "__viyadb_part_num"
-    df = df.withColumn(partNumColumn, getPartitionUdf(col(partColumn)))
-      .repartition(col(partNumColumn))
-      .drop(partNumColumn)
-
-    df = config.table.batch.sortColumns.map(sortColumns =>
-      df.sortWithinPartitions(sortColumns.map(col): _*)
-    ).getOrElse(df)
-
-    df.rdd
-      .mapPartitions(p =>
-        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", outputFormat.toTsvLine(row, dropColumns))))
-      .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
-        classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
-
-    partitions
-  }
-
-  /**
-    * Saves info about this batch into Consul
-    *
-    * @param partitions Partitioning scheme
-    * @param batch      Batch time
-    */
-  protected def saveBatchInfo(partitions: Map[Any, Int], batch: Long) = {
-    logInfo(s"Saving batch info to Consul")
-
-    implicit val formats = DefaultFormats
-
-    val prefix = s"${config.consulPrefix.stripSuffix("/")}/tables/${config.table.name}/batch"
-
-    config.consulClient.kvPut(s"${prefix}/latest", batch.toString)
-    config.consulClient.kvPut(s"${prefix}/${batch}/partitions", write(partitions))
-
-    // TODO: remove old entries
+    allBatches.filter { case (batchId, _) => batchId > lastBatch && batchId != currentBatch }
+      .toSeq.sortBy(_._1)
   }
 
   /**
     * Starts the batch processing
-    *
-    * @param spark Spark session
     */
   def start(spark: SparkSession): Unit = {
-    nextUnprocessedBatch.foreach { batch =>
-      val targetPath = s"${config.batchPrefix}/dt=${batch}"
-
-      if (config.table.batch.partitioning.isEmpty) {
-        processBatch(spark, batch, targetPath)
-      } else {
-        val tmpPath = s"${config.batchPrefix}/dt=${batch}/_unpart"
-        processBatch(spark, batch, tmpPath)
-
-        val partitions = partitionBatch(spark, batch, s"${tmpPath}/*.gz", targetPath, config.table.batch.partitioning.get)
-        saveBatchInfo(partitions, batch)
-
-        FileSystemUtil.delete(tmpPath)
-      }
-    }
+    unprocessedBatches().map { case (batchId, tables) =>
+      val tablesInfo = tables.par.map { tableName =>
+        (tableName, new TableBatchProcess(jobConf.indexer, jobConf.tableConfigs.find(conf => conf.name == tableName).get)
+          .start(batchId))
+      }.seq.toMap
+      BatchInfo(id = batchId, tables = tablesInfo)
+    }.foreach(batchInfo => notifier.send(batchInfo.id, batchInfo))
   }
+}
+
+object BatchProcess {
+
+  case class BatchTableInfo(paths: Seq[String],
+                            partitioning: Option[Map[Any, Int]]) extends Serializable
+
+  case class BatchInfo(id: Long,
+                       tables: Map[String, BatchTableInfo]) extends Serializable
+
 }

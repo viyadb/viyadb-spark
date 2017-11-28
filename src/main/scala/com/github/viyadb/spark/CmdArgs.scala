@@ -2,9 +2,14 @@ package com.github.viyadb.spark
 
 import scopt._
 
-case class CmdArgs(consulHost: String = "localhost", consulPort: Int = 8500,
-                   consulToken: Option[String] = None, consulPrefix: String = "viyadb",
-                   table: String = "")
+/**
+  * Command line arguments passed to the indexer application
+  */
+case class CmdArgs(consulHost: String = "localhost",
+                   consulPort: Int = 8500,
+                   consulToken: Option[String] = None,
+                   consulPrefix: String = "viyadb",
+                   indexerId: String = "")
 
 object CmdArgs {
   def parse(args: Array[String]) = {
@@ -22,8 +27,8 @@ object CmdArgs {
       opt[String]("consul-prefix").optional().action((x, c) =>
         c.copy(consulToken = Some(x))).text("Consul key-value prefix path (default: viyadb)")
 
-      opt[String]("table").action((x, c) =>
-        c.copy(table = x)).text("Name of the table to process")
+      opt[String]("indexer-id").action((x, c) =>
+        c.copy(indexerId = x)).text("Logical name of this indexer process")
 
       help("help").text("prints this usage text")
 

@@ -31,13 +31,13 @@ class Job {
       .set("spark.hadoop.mapred.output.committer.class", classOf[DirectOutputCommitter].getName)
   }
 
-  protected def createStreamingContext(config: JobConf): StreamingContext = {
+  protected def createStreamingContext(jobConf: JobConf): StreamingContext = {
     val spark = SparkSession.builder().config(sparkConf())
       .enableHiveSupport()
       .getOrCreate()
 
     new StreamingContext(spark.sparkContext,
-      config.table.realTime.windowDuration.map(p => Seconds(p.toStandardSeconds.getSeconds))
+      jobConf.indexer.realTime.windowDuration.map(p => Seconds(p.toStandardSeconds.getSeconds))
         .getOrElse(Seconds(5)))
   }
 
@@ -47,7 +47,7 @@ class Job {
     val config = Configs.readConfig(args)
     val ssc = createStreamingContext(config)
 
-    StreamSource.create(config).start(ssc)
+    StreamingProcess.create(config).start(ssc)
 
     ssc.start()
     ssc.awaitTermination()

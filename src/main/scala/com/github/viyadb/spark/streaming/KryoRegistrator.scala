@@ -2,12 +2,10 @@ package com.github.viyadb.spark.streaming
 
 import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
-import com.github.viyadb.spark.batch.OutputFormat
+import com.github.viyadb.spark.batch.OutputSchema
+import com.github.viyadb.spark.notifications.{FileNotifier, KafkaNotifier, Notifier}
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
-import com.github.viyadb.spark.streaming.kafka.OffsetStore.{ConsulOffsetStore, FileSystemOffsetStore}
-import com.github.viyadb.spark.streaming.kafka.{KafkaStreamSource, OffsetStore}
-import com.github.viyadb.spark.streaming.notifier.{KafkaMicroBatchNotifier, MicroBatchNotifier}
-import com.github.viyadb.spark.streaming.record.{JsonRecordFactory, Record, RecordFactory, TsvRecordFactory}
+import com.github.viyadb.spark.streaming.parser.{JsonRecordParser, Record, RecordParser, TsvRecordParser}
 import com.github.viyadb.spark.util.ConsulClient
 import org.apache.spark.streaming.receiver.Receiver
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
@@ -17,6 +15,7 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
   override def registerClasses(kryo: Kryo) {
     kryo.register(classOf[ConsulClient])
     kryo.register(classOf[JobConf])
+    kryo.register(classOf[IndexerConf])
     kryo.register(classOf[TableConf])
     kryo.register(classOf[BatchConf])
     kryo.register(classOf[PartitionConf])
@@ -26,24 +25,22 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[NotifierConf])
     kryo.register(classOf[RealTimeConf])
     kryo.register(classOf[ParseSpecConf])
-    kryo.register(classOf[KafkaConf])
-    kryo.register(classOf[OffsetStoreConf])
+    kryo.register(classOf[KafkaSourceConf])
+    kryo.register(classOf[Notifier[_]])
+    kryo.register(classOf[KafkaNotifier[_]])
+    kryo.register(classOf[FileNotifier[_]])
     kryo.register(classOf[Processor])
     kryo.register(classOf[StreamingProcessor])
     kryo.register(classOf[ProcessorChain])
     kryo.register(classOf[Aggregator])
-    kryo.register(classOf[OffsetStore])
-    kryo.register(classOf[FileSystemOffsetStore])
-    kryo.register(classOf[ConsulOffsetStore])
-    kryo.register(classOf[StreamSource])
-    kryo.register(classOf[KafkaStreamSource])
+    kryo.register(classOf[StreamingProcess])
+    kryo.register(classOf[KafkaStreamingProcess])
     kryo.register(classOf[Record])
-    kryo.register(classOf[RecordFactory])
-    kryo.register(classOf[OutputFormat])
-    kryo.register(classOf[JsonRecordFactory])
-    kryo.register(classOf[TsvRecordFactory])
-    kryo.register(classOf[MicroBatchNotifier])
-    kryo.register(classOf[KafkaMicroBatchNotifier])
+    kryo.register(classOf[Array[Record]])
+    kryo.register(classOf[RecordParser])
+    kryo.register(classOf[OutputSchema])
+    kryo.register(classOf[JsonRecordParser])
+    kryo.register(classOf[TsvRecordParser])
     kryo.register(classOf[PathTracker])
     kryo.register(classOf[Array[Receiver[_]]])
 

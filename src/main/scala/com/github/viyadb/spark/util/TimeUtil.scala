@@ -110,7 +110,7 @@ object TimeUtil {
 
           val translated = strptime2JavaFormat.get(char)
           if (translated.isEmpty && notSupported.contains(char)) {
-            throw new IllegalArgumentException(s"Can't convert strptime format to Joda style: ${format}")
+            throw new IllegalArgumentException(s"Can't convert strptime format to Joda style: $format")
           } else {
             builder.append(translated.getOrElse(char))
             directive = false

@@ -1,7 +1,7 @@
 viyadb-spark
 =============
 
-Data processing backend for ViyaDB based on Spark.
+Data processing backend (indexer) for ViyaDB based on Spark.
 
 [![Build Status](https://travis-ci.org/viyadb/viyadb-spark.png)](https://travis-ci.org/viyadb/viyadb-spark)
 

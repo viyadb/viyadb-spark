@@ -5,35 +5,43 @@ import java.util.GregorianCalendar
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.streaming.parser.{JsonRecordParser, Record, RecordParser}
 
-class JsonRecordFactorySpec extends UnitSpec {
+class JsonRecordParserSpec extends UnitSpec {
 
-  "JsonRecordFactory" should "parse JSON input without field mapping" in {
-    val config = JobConf(
-      table = TableConf(
-        name = "foo",
-        deepStorePath = "",
-        realTime = RealTimeConf(
-          parseSpec = Some(ParseSpecConf(
-            format = "json"
-          ))
-        ),
-        batch = BatchConf(),
-        dimensions = Seq(
-          DimensionConf(name = "app"),
-          DimensionConf(name = "date", `type` = Some("time"), format = Some("%Y-%m-%d %H:%M:%S")),
-          DimensionConf(name = "network"),
-          DimensionConf(name = "city")
-        ),
-        metrics = Seq(
-          MetricConf(name = "revenue", `type` = "double_sum"),
-          MetricConf(name = "sessions", `type` = "long_sum")
-        )
+  "JsonRecordParser" should "parse JSON input without field mapping" in {
+    val tableConf = TableConf(
+      name = "foo",
+      dimensions = Seq(
+        DimensionConf(name = "app"),
+        DimensionConf(name = "date", `type` = Some("time"), format = Some("%Y-%m-%d %H:%M:%S")),
+        DimensionConf(name = "network"),
+        DimensionConf(name = "city")
+      ),
+      metrics = Seq(
+        MetricConf(name = "revenue", `type` = "double_sum"),
+        MetricConf(name = "sessions", `type` = "long_sum")
       )
     )
 
-    val recordFactory = RecordFactory.create(config)
-    assert(recordFactory.getClass == classOf[JsonRecordFactory])
+    val indexerConf = IndexerConf(
+      deepStorePath = "",
+      realTime = RealTimeConf(
+        parseSpec = Some(ParseSpecConf(
+          format = "json",
+          timeFormats = Some(Map("date" -> "%Y-%m-%d %H:%M:%S"))
+        ))
+      ),
+      batch = BatchConf()
+    )
+
+    val jobConf = JobConf(
+      indexer = indexerConf,
+      tableConfigs = Seq(tableConf)
+    )
+
+    val recordParser = RecordParser.create(jobConf)
+    assert(recordParser.getClass == classOf[JsonRecordParser])
 
     val jsonContent = Seq(
       """{
@@ -65,7 +73,7 @@ class JsonRecordFactorySpec extends UnitSpec {
         |}"""
     ).map(_.stripMargin)
 
-    val rows = jsonContent.map(json => recordFactory.createRecord("", json).get)
+    val rows = jsonContent.map(json => recordParser.parseRecord("", json).get)
     assert(rows.size == 3)
 
     assert(rows(0) == new Record(Array("a.b.c", new Timestamp(
@@ -78,42 +86,49 @@ class JsonRecordFactorySpec extends UnitSpec {
       new GregorianCalendar(2016, 11, 12, 1, 20, 1).getTimeInMillis), "facebook", "San Francisco", 8.0, 1L)))
   }
 
-  "JsonRecordFactory" should "parse JSON input with field mapping" in {
-    val config = JobConf(
-      table = TableConf(
-        name = "foo",
-        deepStorePath = "",
-        realTime = RealTimeConf(
-          parseSpec = Some(ParseSpecConf(
-            format = "json",
-            fieldMapping = Some(Map(
-              "app" -> "$.meta.app",
-              "date" -> "$.meta.time",
-              "network" -> "$.attr.network",
-              "city" -> "$.meta.city",
-              "revenue" -> "$.stats.revenue",
-              "sessions" -> "$.stats.sessions"
-            ))
-          ))
-        ),
-        batch = BatchConf(
-          partitioning = None
-        ),
-        dimensions = Seq(
-          DimensionConf(name = "app"),
-          DimensionConf(name = "date", `type` = Some("time"), format = Some("%Y-%m-%d %H:%M:%S")),
-          DimensionConf(name = "network"),
-          DimensionConf(name = "city")
-        ),
-        metrics = Seq(
-          MetricConf(name = "revenue", `type` = "double_sum"),
-          MetricConf(name = "sessions", `type` = "long_sum")
-        )
+  "JsonRecordParser" should "parse JSON input with field mapping" in {
+    val tableConf = TableConf(
+      name = "foo",
+      dimensions = Seq(
+        DimensionConf(name = "app"),
+        DimensionConf(name = "date", `type` = Some("time"), format = Some("%Y-%m-%d %H:%M:%S")),
+        DimensionConf(name = "network"),
+        DimensionConf(name = "city")
+      ),
+      metrics = Seq(
+        MetricConf(name = "revenue", `type` = "double_sum"),
+        MetricConf(name = "sessions", `type` = "long_sum")
       )
     )
 
-    val recordFactory = RecordFactory.create(config)
-    assert(recordFactory.getClass == classOf[JsonRecordFactory])
+    val indexerConf = IndexerConf(
+      deepStorePath = "",
+      realTime = RealTimeConf(
+        parseSpec = Some(ParseSpecConf(
+          format = "json",
+          fieldMapping = Some(Map(
+            "app" -> "$.meta.app",
+            "date" -> "$.meta.time",
+            "network" -> "$.attr.network",
+            "city" -> "$.meta.city",
+            "revenue" -> "$.stats.revenue",
+            "sessions" -> "$.stats.sessions"
+          )),
+          timeFormats = Some(Map("date" -> "%Y-%m-%d %H:%M:%S"))
+        ))
+      ),
+      batch = BatchConf(
+        partitioning = None
+      )
+    )
+
+    val jobConf = JobConf(
+      indexer = indexerConf,
+      tableConfigs = Seq(tableConf)
+    )
+
+    val recordParser = RecordParser.create(jobConf)
+    assert(recordParser.getClass == classOf[JsonRecordParser])
 
     val jsonContent = Seq(
       """{
@@ -163,7 +178,7 @@ class JsonRecordFactorySpec extends UnitSpec {
         |}"""
     ).map(_.stripMargin)
 
-    val rows = jsonContent.map(json => recordFactory.createRecord("", json).get)
+    val rows = jsonContent.map(json => recordParser.parseRecord("", json).get)
     assert(rows.size == 3)
 
     assert(rows(0) == new Record(Array("a.b.c", new Timestamp(

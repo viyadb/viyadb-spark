@@ -1,11 +1,11 @@
 package com.github.viyadb.spark.processing
 
-import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.Configs.TableConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{LongType, TimestampType}
 
-class TimeTruncator(config: JobConf) extends Processor(config) {
+class TimeTruncator(tableConf: TableConf) extends Processor {
 
   protected def truncate(column: String, format: String)(df: DataFrame): DataFrame = {
     if (format == "second") {
@@ -21,7 +21,7 @@ class TimeTruncator(config: JobConf) extends Processor(config) {
     }
   }
 
-  private val truncateFuncs = config.table.dimensions.filter(d => d.isTimeType() && d.granularity.nonEmpty)
+  private val truncateFuncs = tableConf.dimensions.filter(d => d.isTimeType && d.granularity.nonEmpty)
     .map(dim => truncate(dim.name, dim.granularity.get)(_))
 
   override def process(df: DataFrame): DataFrame = {

@@ -14,7 +14,7 @@ object FileSystemUtil {
     try {
       fs.delete(new org.apache.hadoop.fs.Path(path), true)
     } catch {
-      case _: Throwable => {}
+      case _: Throwable =>
     }
   }
 
@@ -23,7 +23,7 @@ object FileSystemUtil {
     fs.exists(new org.apache.hadoop.fs.Path(path))
   }
 
-  def setContent(path: String, content: String) = {
+  def setContent(path: String, content: String): Unit = {
     val fs = org.apache.hadoop.fs.FileSystem.get(new java.net.URI(path), new org.apache.hadoop.conf.Configuration())
     val fh = fs.create(new Path(path), true)
     try {

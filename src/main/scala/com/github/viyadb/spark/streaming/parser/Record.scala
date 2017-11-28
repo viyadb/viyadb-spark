@@ -1,9 +1,9 @@
-package com.github.viyadb.spark.streaming.record
+package com.github.viyadb.spark.streaming.parser
 
 import org.apache.spark.sql.Row
 
 /**
-  * Event represented as Spark's Row
+  * Record represented as Spark's Row
   *
   * @param values Parsed record field values
   */

@@ -33,22 +33,17 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
   }
 
   "TimeTruncator" should "truncate dimensions" in {
-    val config = JobConf(
-      table = TableConf(
-        name = "",
-        deepStorePath = "",
-        realTime = RealTimeConf(),
-        batch = BatchConf(),
-        dimensions = Seq(
-          DimensionConf(name = "y", `type` = Some("time"), granularity = Some("year")),
-          DimensionConf(name = "m", `type` = Some("time"), granularity = Some("month")),
-          DimensionConf(name = "d", `type` = Some("time"), granularity = Some("day")),
-          DimensionConf(name = "h", `type` = Some("time"), granularity = Some("hour")),
-          DimensionConf(name = "min", `type` = Some("time"), granularity = Some("minute")),
-          DimensionConf(name = "s", `type` = Some("time"), granularity = Some("second"))
-        ),
-        metrics = Seq()
-      )
+    val tableConf = TableConf(
+      name = "",
+      dimensions = Seq(
+        DimensionConf(name = "y", `type` = Some("time"), granularity = Some("year")),
+        DimensionConf(name = "m", `type` = Some("time"), granularity = Some("month")),
+        DimensionConf(name = "d", `type` = Some("time"), granularity = Some("day")),
+        DimensionConf(name = "h", `type` = Some("time"), granularity = Some("hour")),
+        DimensionConf(name = "min", `type` = Some("time"), granularity = Some("minute")),
+        DimensionConf(name = "s", `type` = Some("time"), granularity = Some("second"))
+      ),
+      metrics = Seq()
     )
 
     val sparkSession = ss
@@ -64,7 +59,7 @@ class TimeTruncatorSpec extends UnitSpec with BeforeAndAfter {
           new Timestamp(t), new Timestamp(t), new Timestamp(t)))
     ).toDF()
 
-    val result = new TimeTruncator(config).process(df).map(row => row.toSeq.map(_.toString)).collect()
+    val result = new TimeTruncator(tableConf).process(df).map(row => row.toSeq.map(_.toString)).collect()
 
     assert(result(0) == Seq("2017-01-01", "2017-08-01", "2017-08-07", "2017-08-07 12:00:00.0",
       "2017-08-07 12:59:00.0", "2017-08-07 12:59:26.0"))

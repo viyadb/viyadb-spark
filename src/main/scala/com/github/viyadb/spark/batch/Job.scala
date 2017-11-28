@@ -30,7 +30,7 @@ class Job {
       .set("spark.hadoop.mapred.output.committer.class", classOf[DirectOutputCommitter].getName)
   }
 
-  protected def createSparkSession(config: JobConf): SparkSession = {
+  protected def createSparkSession(jobConf: JobConf): SparkSession = {
     SparkSession.builder().config(sparkConf())
       .enableHiveSupport()
       .getOrCreate()

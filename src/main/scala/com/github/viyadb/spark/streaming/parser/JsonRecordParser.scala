@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.streaming.record
+package com.github.viyadb.spark.streaming.parser
 
 import java.util
 
@@ -8,10 +8,9 @@ import com.github.viyadb.spark.Configs.JobConf
 import com.jayway.jsonpath.spi.json.JacksonJsonProvider
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider
 import com.jayway.jsonpath.{Configuration, JsonPath}
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
-class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
+class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
 
   @transient
   private lazy val jsonPathConf = Configuration.builder()
@@ -21,7 +20,9 @@ class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
     .build()
 
   @transient
-  private lazy val jsonPaths = getColumnMapping().map(paths => paths.map(path => JsonPath.compile(path)))
+  private lazy val jsonPaths = parseSpec.fieldMapping
+    .map(mapping => inputSchema.fields.map(f => mapping.get(f.name).get))
+    .map(paths => paths.map(path => JsonPath.compile(path)))
 
   class SerializableTypeReference extends TypeReference[java.util.Map[String, Object]]
     with Serializable {}
@@ -57,9 +58,8 @@ class JsonRecordFactory(config: JobConf) extends RecordFactory(config) {
     })
   }
 
-  override def createRecord(meta: String, content: String): Option[Row] = {
-    val doc = jsonMapper.readValue[java.util.Map[String, Object]](content, typeReference)
-
+  override def parseRecord(topic: String, record: String) = {
+    val doc = jsonMapper.readValue[java.util.Map[String, Object]](record, typeReference)
     Some(
       parseJavaObjects(
         jsonPaths.map(paths => paths.map(path =>

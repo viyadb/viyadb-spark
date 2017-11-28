@@ -1,12 +1,13 @@
-package com.github.viyadb.spark.streaming.record
+package com.github.viyadb.spark.streaming.parser
 
-import com.github.viyadb.spark.Configs.JobConf
-import org.apache.spark.sql.Row
+import com.github.viyadb.spark.Configs.{JobConf, ParseSpecConf}
 import org.apache.spark.sql.types._
 
-class TsvRecordFactory(config: JobConf) extends RecordFactory(config) {
+class TsvRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
 
-  private val delimiter = config.table.realTime.parseSpec.flatMap(_.delimiter).getOrElse("\t")
+  private val delimiter = parseSpec.delimiter.getOrElse("\t")
+
+  private val columnIndices = inputSchema.map(f => parseSpec.columns.get.indexOf(f.name))
 
   /**
     * Parses record from string values according to schema
@@ -31,9 +32,9 @@ class TsvRecordFactory(config: JobConf) extends RecordFactory(config) {
       })
   }
 
-  override def createRecord(meta: String, content: String): Option[Row] = {
+  override def parseRecord(topic: String, record: String) = {
     Some(
-      parseInputRow(content.split(delimiter))
+      parseInputRow(record.split(delimiter))
     )
   }
 }

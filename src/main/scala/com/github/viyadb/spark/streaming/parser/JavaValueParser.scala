@@ -1,4 +1,4 @@
-package com.github.viyadb.spark.streaming.record
+package com.github.viyadb.spark.streaming.parser
 
 import java.sql.Timestamp
 
@@ -46,7 +46,7 @@ class JavaValueParser(nullNumericAsZero: Boolean = true,
       case n: java.lang.Float => n
       case n: java.lang.Number => n.floatValue()
       case s: java.lang.String => java.lang.Float.parseFloat(s)
-      case null => if (nullNumericAsZero) 0.0f else throw new NullPointerException()
+      case null => if (nullNumericAsZero) 0.0F else throw new NullPointerException()
     }
   }
 

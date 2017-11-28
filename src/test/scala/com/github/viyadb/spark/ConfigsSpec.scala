@@ -1,12 +1,13 @@
 package com.github.viyadb.spark
 
+import com.github.viyadb.spark.Configs.IndexerConf
+
 class ConfigsSpec extends UnitSpec {
 
-  "TableConfig" should "parse" in {
+  "IndexerConf" should "parse" in {
     val json =
       """
        |{
-       |  "name": "foo",
        |  "deepStorePath": "",
        |  "realTime": {
        |    "windowDuration": "PT1M",
@@ -21,11 +22,12 @@ class ConfigsSpec extends UnitSpec {
        |      "column": "app_id",
        |      "numPartitions": 1
        |    }
-       |  }
+       |  },
+       |  "tables": ["foo"]
        |}
       """.stripMargin
 
-    val config = Configs.parseTableConf(json)
+    val config = Configs.parseConf[IndexerConf](json)
 
     assert(config.realTime.windowDuration.get.toStandardSeconds.getSeconds == 60)
     assert(config.batch.keepInterval.get.getEnd.toString("yyyy-MM-dd") == "2017-02-01")
