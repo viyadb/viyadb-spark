@@ -69,7 +69,10 @@ Batch process does the following:
  * [Consul](http://www.consul.io)
  
 Consul is used for storing configuration as well as for synchronizing different parts that ViyaDB cluster consists of.
-For running either real-time or batch processes table configuration must present in Consul under the key: `<consul prefix>/tables/<table name>/config`.
+For running either real-time or batch processes the following configurations must present in Consul:
+
+ * `<consul prefix>/tables/<table name>/config` - Table configuration
+ * `<consul prefix>/indexers/<indexer ID>/config` - Indexer configuration
 
 ## Building
 
@@ -80,9 +83,9 @@ mvn package
 ## Running
 
 ```bash
-spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.1-uberjar.jar \
+spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.2-uberjar.jar \
     --consul-host "<consul host>" --consul-prefix "viyadb" \
-    --table "<table name>"
+    --indexer-id "<indexer ID>"
 ```
 
 To run streaming job use `com.github.viyadb.spark.streaming.Job` for `jobClass`, to run batch job
@@ -91,5 +94,5 @@ use `com.github.viyadb.spark.batch.Job`.
 To see all available options, run:
 
 ```bash
-spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.1-uberjar.jar --help
+spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.2-uberjar.jar --help
 ```
