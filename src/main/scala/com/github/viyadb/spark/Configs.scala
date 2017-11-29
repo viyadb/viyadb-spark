@@ -4,7 +4,7 @@ import com.github.viyadb.spark.util.{ConsulClient, JodaSerializers, TypeUtil}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.DataType
 import org.joda.time.{Interval, Period}
-import org.json4s.jackson.Serialization.{read,writePretty}
+import org.json4s.jackson.Serialization.{read, writePretty}
 import org.json4s.{DefaultFormats, Formats}
 
 /**
@@ -89,9 +89,11 @@ object Configs extends Logging {
   /**
     * Configures where processed batch info (by both real-time and batch indexers) will be sent to
     *
-    * @param queue   Logical message queue name on which to send updates.
-    * @param channel Message queue target host(s). In case of Kafka, it's a list of brokers.
-    * @param `type`  Notification message queue type (kafka, ...).
+    * @param queue   Logical message queue name on which to send updates. In case of Kafka notifier, it's
+    *                topic name. In case of File notifier, it's sub-directory where all messages will be written. Etc.
+    * @param channel Message queue target host(s). In case of Kafka notifier, it's a comma-separated list of brokers.
+    *                In case of File notifier, it's a base path where all messages will be written. Etc.
+    * @param `type`  Notification message queue type (kafka, file, etc.).
     */
   case class NotifierConf(queue: String = "",
                           channel: String = "",

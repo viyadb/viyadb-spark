@@ -11,7 +11,8 @@ import org.apache.spark.streaming.kafka.{KafkaUtils, OffsetRange}
 
 class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifest[A]) extends Notifier[A] {
 
-  lazy private val producer = createProducer()
+  @transient
+  private lazy val producer = createProducer()
 
   private def createProducer() = {
     val props = new Properties()
@@ -31,15 +32,19 @@ class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifes
 
   override def lastMessage = {
     val latestOffsets = KafkaUtil.latestOffsets(notifierConf.channel, Set(notifierConf.queue))
-    if (!latestOffsets.exists(e => e._2 <= 0)) {
+    if (latestOffsets.isEmpty) {
+      None
+    } else {
       val lastElementRdd = KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](
         SparkSession.builder().getOrCreate().sparkContext,
-        Map("metadata.broker.list" -> notifierConf.channel.mkString(",")),
-        latestOffsets.map(o => OffsetRange(o._1, o._2 - 1, o._2)).toArray
+        Map("metadata.broker.list" -> notifierConf.channel),
+        latestOffsets.map(latestOffset => OffsetRange(
+          latestOffset._1,
+          if (latestOffset._2 > 0) latestOffset._2 - 1 else latestOffset._2,
+          latestOffset._2)).toArray
       )
-      lastElementRdd.collect().map { case (_, value) => readMessage(value) }.headOption
-    } else {
-      None
+      lastElementRdd.collect().map { case (id, value) => (id, readMessage(value)) }.
+        sortBy(_._1).map(_._2).lastOption
     }
   }
 
@@ -52,11 +57,15 @@ class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifes
       OffsetRange(topicPartition.topic, topicPartition.partition, fromOffsets, toOffsets)
     }.toArray
 
-    val lastElementRdd = KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](
-      SparkSession.builder().getOrCreate().sparkContext,
-      Map("metadata.broker.list" -> notifierConf.channel.mkString(",")),
-      offsetRanges
-    )
-    lastElementRdd.collect().map { case (_, value) => readMessage(value) }
+    if (offsetRanges.isEmpty || latestOffsets.isEmpty) {
+      Seq()
+    } else {
+      val lastElementRdd = KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](
+        SparkSession.builder().getOrCreate().sparkContext,
+        Map("metadata.broker.list" -> notifierConf.channel),
+        offsetRanges
+      )
+      lastElementRdd.collect().map { case (_, value) => readMessage(value) }
+    }
   }
 }
