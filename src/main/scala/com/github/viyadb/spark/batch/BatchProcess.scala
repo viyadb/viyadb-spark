@@ -35,16 +35,19 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
       }
     }
 
+    def isUnprocessedBatch(batchId: Long): Boolean = {
+      batchId > lastBatch && batchId != currentBatch
+    }
+
     // Read all notifications send by the real-time process
     val realTimeNotifier = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
-    val allBatches = realTimeNotifier.allMessages.flatMap { mbInfo =>
+    realTimeNotifier.allMessages.flatMap { mbInfo =>
       mbInfo.tables.flatMap { case (tableName, tableInfo) =>
         tableInfo.paths.map(extractBatchIdFromPath(_)).map(batchId => (batchId, mbInfo.id, tableName))
       }
-    }.groupBy(_._1).mapValues(v => (v.map(_._2).distinct.sorted, v.map(_._3).distinct))
+    }.filter(v => isUnprocessedBatch(v._1))
+      .groupBy(_._1).mapValues(v => (v.map(_._2).distinct.sorted, v.map(_._3).distinct))
       .map(v => (v._1, v._2._1, v._2._2))
-
-    allBatches.filter { case (batchId, _, _) => batchId > lastBatch && batchId != currentBatch }
       .toSeq.sortBy(_._1)
   }
 
