@@ -74,13 +74,21 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     logInfo(s"Partitioning $sourcePath => $targetPath")
     var df = microBatchLoader.loadDataFrame(sourcePath)
 
-    val hashColumn = partitionConf.hashColumn.getOrElse(false)
-    val partColumn = if (hashColumn) "__viyadb_part_col" else partitionConf.column
-    if (hashColumn) {
-      df = df.withColumn(partColumn, pmod(crc32(col(partitionConf.column)), lit(partitionConf.numPartitions)))
+    val toHash = partitionConf.hash.getOrElse(true)
+    if (!toHash && partitionConf.columns.size > 1) {
+      throw new IllegalArgumentException("Multiple columns must be hashed to form a partitioning key")
     }
-    val dropColumns = if (hashColumn) 1 else 0
-    val partitions = calculatePartitoins(df, partColumn, partitionConf.numPartitions)
+
+    val partColumn = if (toHash || partitionConf.columns.size > 1)
+      "__viyadb_part_col" else partitionConf.columns(0)
+
+    if (toHash) {
+      df = df.withColumn(partColumn,
+        pmod(crc32(concat_ws(":", partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
+    }
+
+    val dropColumns = if (toHash) 1 else 0
+    val partitions = calculatePartitoins(df, partColumn, partitionConf.partitions)
 
     def getPartition(value: Any) = partitions.getOrElse(value, 0)
 

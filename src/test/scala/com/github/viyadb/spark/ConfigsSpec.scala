@@ -19,8 +19,8 @@ class ConfigsSpec extends UnitSpec {
        |  "batch": {
        |    "keepInterval": "2017-01-01/P1M",
        |    "partitioning": {
-       |      "column": "app_id",
-       |      "numPartitions": 1
+       |      "columns": ["app_id"],
+       |      "partitions": 1
        |    }
        |  },
        |  "tables": ["foo"]
@@ -32,6 +32,6 @@ class ConfigsSpec extends UnitSpec {
     assert(config.realTime.windowDuration.get.toStandardSeconds.getSeconds == 60)
     assert(config.batch.keepInterval.get.getEnd.toString("yyyy-MM-dd") == "2017-02-01")
     assert(config.realTime.parseSpec.get.columns.get.size == 2)
-    assert(config.batch.partitioning.get.column == "app_id")
+    assert(config.batch.partitioning.get.columns == Seq("app_id"))
   }
 }

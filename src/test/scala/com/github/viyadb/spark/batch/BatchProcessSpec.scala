@@ -71,8 +71,9 @@ class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
             queue = "batch-notifications"
           ),
           partitioning = Some(PartitionConf(
-            column = "company",
-            numPartitions = 2
+            columns = Seq("company"),
+            hash = Some(false),
+            partitions = 2
           ))
         )
       )
