@@ -1,6 +1,6 @@
 package com.github.viyadb.spark.batch
 
-import com.github.viyadb.spark.Configs.JobConf
+import com.github.viyadb.spark.Configs.{JobConf, PartitionConf}
 import com.github.viyadb.spark.batch.BatchProcess.BatchInfo
 import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.streaming.StreamingProcess.MicroBatchInfo
@@ -43,7 +43,7 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
     val realTimeNotifier = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
     realTimeNotifier.allMessages.flatMap { mbInfo =>
       mbInfo.tables.flatMap { case (tableName, tableInfo) =>
-        tableInfo.paths.map(extractBatchIdFromPath(_)).map(batchId => (batchId, mbInfo.id, tableName))
+        tableInfo.paths.map(extractBatchIdFromPath).map(batchId => (batchId, mbInfo.id, tableName))
       }
     }.filter(v => isUnprocessedBatch(v._1))
       .groupBy(_._1).mapValues(v => (v.map(_._2).distinct.sorted, v.map(_._3).distinct))
@@ -68,7 +68,8 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
 object BatchProcess {
 
   case class BatchTableInfo(paths: Seq[String],
-                            partitioning: Option[Map[Any, Int]]) extends Serializable
+                            partitioning: Option[Map[Any, Int]],
+                            partitionConf: Option[PartitionConf]) extends Serializable
 
   case class BatchInfo(id: Long,
                        tables: Map[String, BatchTableInfo],

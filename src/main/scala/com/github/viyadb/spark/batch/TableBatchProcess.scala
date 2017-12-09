@@ -91,7 +91,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
       .repartition(col(partNumColumn))
       .drop(partNumColumn)
 
-    df = Seq(tableConf.sortColumns, indexerConf.batch.sortColumns).find(_.nonEmpty).map(_.get).map(sortColumns =>
+    df = Seq(tableConf.sortColumns, indexerConf.batch.sortColumns).find(_.nonEmpty).flatten.map(sortColumns =>
       df.sortWithinPartitions(sortColumns.map(col): _*)
     ).getOrElse(df)
 
@@ -110,7 +110,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
   def start(batchId: Long): BatchTableInfo = {
     val targetPath = s"${indexerConf.batchPrefix}/${tableConf.name}/dt=$batchId"
     val partitionConf = Seq(tableConf.partitioning, indexerConf.batch.partitioning)
-      .find(_.nonEmpty).map(_.get)
+      .find(_.nonEmpty).flatten
 
     val partitioning = if (partitionConf.isEmpty) {
       processBatch(batchId, targetPath)
@@ -124,6 +124,10 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
         FileSystemUtil.delete(tmpPath)
       }
     }
-    BatchTableInfo(paths = Seq(targetPath), partitioning = partitioning)
+    BatchTableInfo(
+      paths = Seq(targetPath),
+      partitioning = partitioning,
+      partitionConf = partitionConf
+    )
   }
 }
