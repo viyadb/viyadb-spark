@@ -87,7 +87,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
 
     if (toHash) {
       df = df.withColumn(partColumn,
-        pmod(crc32(concat_ws(":", partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
+        pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
     }
 
     val dropColumns = if (toHash) 1 else 0
