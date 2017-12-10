@@ -76,7 +76,10 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
 
     val toHash = partitionConf.hash.getOrElse(true)
     if (!toHash && partitionConf.columns.size > 1) {
-      throw new IllegalArgumentException("Multiple columns must be hashed to form a partitioning key")
+      throw new IllegalArgumentException("Multiple columns must be hashed to form a partition key")
+    }
+    if (partitionConf.columns.exists(col => !tableConf.dimensions.exists(dim => dim.name == col))) {
+      throw new IllegalArgumentException("Only table dimensions can be used in partition key")
     }
 
     val partColumn = if (toHash || partitionConf.columns.size > 1)
