@@ -8,6 +8,7 @@ import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.IntegerType
 
 /**
   * Processes micro-batch table data produced by the streaming processes
@@ -52,16 +53,20 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
       .saveAsTextFile(targetPath, classOf[GzipCodec])
   }
 
-  protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int): Map[Any, Int] = {
+  protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int): Seq[Int] = {
     logInfo(s"Calculating partitioining")
-    val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect().map(r => (r(0), r.getAs[Long](1)))
 
-    BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
+    val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect()
+      .map(r => (r.getAs[Int](0), r.getAs[Long](1)))
+
+    val valueToIndex = BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
       .zipWithIndex.flatMap { case (bins, index) =>
       bins.map { case (elems, _) =>
         (elems, index)
       }
     }.toMap
+
+    (1 to numPartitions).map(value => valueToIndex.getOrElse(value - 1, -1))
   }
 
   /**
@@ -69,7 +74,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     */
   protected def partitionBatch(batchId: Long,
                                sourcePath: String, targetPath: String,
-                               partitionConf: PartitionConf): Map[Any, Int] = {
+                               partitionConf: PartitionConf): Seq[Int] = {
 
     logInfo(s"Partitioning $sourcePath => $targetPath")
 
@@ -80,13 +85,12 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     val partColumn = "__viyadb_part_col"
 
     var df = microBatchLoader.loadDataFrame(sourcePath)
-      .withColumn(partColumn, pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
+      .withColumn(partColumn,
+        pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)).cast(IntegerType))
 
     val partitions = calculatePartitoins(df, partColumn, partitionConf.partitions)
 
-    def getPartition(value: Any) = partitions.getOrElse(value, 0)
-
-    val getPartitionUdf = udf((value: Any) => getPartition(value))
+    val getPartitionUdf = udf((value: Int) => partitions(value))
 
     val partNumColumn = "__viyadb_part_num"
     df = df.withColumn(partNumColumn, getPartitionUdf(col(partColumn)))
@@ -99,7 +103,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
 
     df.rdd
       .mapPartitions(p =>
-        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", outputSchema.toTsvLine(row, 1))))
+        p.map(row => (s"part=${partitions(row.getAs[Int](partColumn))}", outputSchema.toTsvLine(row, 1))))
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 

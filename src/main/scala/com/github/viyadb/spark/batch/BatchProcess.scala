@@ -68,7 +68,7 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
 object BatchProcess {
 
   case class BatchTableInfo(paths: Seq[String],
-                            partitioning: Option[Map[Any, Int]],
+                            partitioning: Option[Seq[Int]],
                             partitionConf: Option[PartitionConf]) extends Serializable
 
   case class BatchInfo(id: Long,
