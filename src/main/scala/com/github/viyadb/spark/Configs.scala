@@ -71,8 +71,7 @@ object Configs extends Logging {
     * Configures how data should be partitioned by the batch process
     */
   case class PartitionConf(columns: Seq[String],
-                           partitions: Int,
-                           hash: Option[Boolean] = Some(true)) extends Serializable
+                           partitions: Int) extends Serializable
 
   /**
     * Table structure configuration

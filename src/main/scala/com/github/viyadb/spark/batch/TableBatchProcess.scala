@@ -72,25 +72,16 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
                                partitionConf: PartitionConf): Map[Any, Int] = {
 
     logInfo(s"Partitioning $sourcePath => $targetPath")
-    var df = microBatchLoader.loadDataFrame(sourcePath)
 
-    val toHash = partitionConf.hash.getOrElse(true)
-    if (!toHash && partitionConf.columns.size > 1) {
-      throw new IllegalArgumentException("Multiple columns must be hashed to form a partition key")
-    }
     if (partitionConf.columns.exists(col => !tableConf.dimensions.exists(dim => dim.name == col))) {
       throw new IllegalArgumentException("Only table dimensions can be used in partition key")
     }
 
-    val partColumn = if (toHash || partitionConf.columns.size > 1)
-      "__viyadb_part_col" else partitionConf.columns(0)
+    val partColumn = "__viyadb_part_col"
 
-    if (toHash) {
-      df = df.withColumn(partColumn,
-        pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
-    }
+    var df = microBatchLoader.loadDataFrame(sourcePath)
+      .withColumn(partColumn, pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)))
 
-    val dropColumns = if (toHash) 1 else 0
     val partitions = calculatePartitoins(df, partColumn, partitionConf.partitions)
 
     def getPartition(value: Any) = partitions.getOrElse(value, 0)
@@ -108,7 +99,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
 
     df.rdd
       .mapPartitions(p =>
-        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", outputSchema.toTsvLine(row, dropColumns))))
+        p.map(row => (s"part=${getPartition(row.getAs[Any](partColumn))}", outputSchema.toTsvLine(row, 1))))
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 

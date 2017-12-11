@@ -72,7 +72,6 @@ class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
           ),
           partitioning = Some(PartitionConf(
             columns = Seq("company"),
-            hash = Some(false),
             partitions = 2
           ))
         )
