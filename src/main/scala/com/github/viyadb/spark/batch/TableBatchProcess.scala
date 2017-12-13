@@ -53,7 +53,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
       .saveAsTextFile(targetPath, classOf[GzipCodec])
   }
 
-  protected def calculatePartitoins(df: DataFrame, partitionColumn: String, numPartitions: Int): Seq[Int] = {
+  protected def calculatePartitions(df: DataFrame, partitionColumn: String, numPartitions: Int): Seq[Int] = {
     logInfo(s"Calculating partitioining")
 
     val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect()
@@ -88,7 +88,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
       .withColumn(partColumn,
         pmod(crc32(concat(partitionConf.columns.map(col): _*)), lit(partitionConf.partitions)).cast(IntegerType))
 
-    val partitions = calculatePartitoins(df, partColumn, partitionConf.partitions)
+    val partitions = calculatePartitions(df, partColumn, partitionConf.partitions)
 
     val getPartitionUdf = udf((value: Int) => partitions(value))
 
