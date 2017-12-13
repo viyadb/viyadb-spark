@@ -7,25 +7,24 @@ import scala.collection.mutable.ListBuffer
   */
 object BinPackAlgorithm {
 
+  case class Bin[A](elements: ListBuffer[(A, Long)] = new ListBuffer[(A, Long)],
+                    var total: Long = 0) extends Serializable
+
   /**
     * @param elemsByCount List of tuples: (element, weight).
     * @param binsNum      Target number of bins to create.
     * @return sequence of Bin objects containing the needed partitioning. The number of resulted bins can be smaller
     *         than the requested number in case it's impossible to split equally.
     */
-  def packBins[A](elemsByCount: Seq[(A, Long)], binsNum: Int): Array[Seq[(A, Long)]] = {
-    case class Bin(keys: ListBuffer[(A, Long)] = new ListBuffer, var total: Long = 0)
-
-    val bins = Array.fill[Bin](binsNum)(Bin())
-
+  def packBins[A](elemsByCount: Seq[(A, Long)], binsNum: Int): Array[Bin[A]] = {
+    val bins = Array.fill[Bin[A]](binsNum)(Bin[A]())
     val maxBinSize = elemsByCount.map(_._2).sum / binsNum
 
     elemsByCount.sortBy(-_._2).foreach { case (element: A, weight) =>
       val targetBin = bins.find(bin => (bin.total + weight <= maxBinSize)).getOrElse(bins.minBy(_.total))
-      targetBin.keys += Tuple2(element, weight)
+      targetBin.elements += Tuple2(element, weight)
       targetBin.total += weight
     }
-
-    bins.map(_.keys.toSeq)
+    bins
   }
 }

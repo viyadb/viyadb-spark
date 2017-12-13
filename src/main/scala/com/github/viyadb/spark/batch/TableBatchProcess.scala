@@ -59,14 +59,14 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     val rowStats = df.groupBy(partitionColumn).agg(count(lit(1))).collect()
       .map(r => (r.getAs[Int](0), r.getAs[Long](1)))
 
-    val valueToIndex = BinPackAlgorithm.packBins(rowStats, numPartitions).filter(_.nonEmpty)
-      .zipWithIndex.flatMap { case (bins, index) =>
-      bins.map { case (elems, _) =>
-        (elems, index)
-      }
-    }.toMap
+    val valueToPartition = BinPackAlgorithm.packBins(rowStats, numPartitions)
+      .zipWithIndex.flatMap { case (bin, index) => bin.elements.map(key => (key._1, index)) }
+      .toMap
 
-    (1 to numPartitions).map(value => valueToIndex.getOrElse(value - 1, -1))
+    val usedPartitions = valueToPartition.values.toSet
+    val unusedPartitions = (0 to numPartitions-1).filter(!usedPartitions.contains(_)).iterator
+
+    (0 to numPartitions-1).map(value => valueToPartition.getOrElse(value, unusedPartitions.next()))
   }
 
   /**
