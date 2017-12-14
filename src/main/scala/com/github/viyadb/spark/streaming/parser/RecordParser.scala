@@ -4,10 +4,10 @@ import com.github.viyadb.spark.Configs.{JobConf, ParseSpecConf}
 import com.github.viyadb.spark.util.TimeUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
-abstract class RecordParser(jobConf: JobConf) extends Serializable {
+abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging {
 
   protected val parseSpec = jobConf.indexer.realTime.parseSpec.getOrElse(ParseSpecConf())
 
@@ -19,6 +19,14 @@ abstract class RecordParser(jobConf: JobConf) extends Serializable {
     parseSpec.timeFormats.flatMap(_.get(fieldType.name)).map(TimeUtil.strptime2JavaFormat(_))
   }.toArray
 
+  protected def pickCommonType(dataTypes: Seq[DataType]): DataType = {
+    dataTypes.sortWith { (dt1, dt2) =>
+      if (dt1 == StringType) true
+      else if (dt2 == StringType) false
+      else true // just pick the first one
+    }.head
+  }
+
   /**
     * Returns schema containing all the columns from all tables.
     * The order of schema fields is not defined.
@@ -26,15 +34,21 @@ abstract class RecordParser(jobConf: JobConf) extends Serializable {
   protected def mergedTablesSchema(): StructType = {
     val mergedFields = jobConf.tableConfigs.flatMap { tableConf =>
       (tableConf.dimensions ++ tableConf.metrics.filter(!_.isCountType))
-    }.map(col => StructField(col.inputField, col.dataType)).distinct
+    }.map(col => (col.inputField, col.dataType)).distinct
 
-    val fieldNames = mergedFields.map(_.name).toList
-    if (fieldNames.distinct.size != fieldNames.size) {
-      throw new IllegalArgumentException("Conflicting types are defined in following fields: " +
+    val fieldNames = mergedFields.map(_._1).toList
+
+    val selectedFields = if (fieldNames.distinct.size != fieldNames.size) {
+      logWarning("Conflicting types are defined in following fields: " +
         fieldNames.diff(fieldNames.distinct).distinct.mkString(", "))
+      mergedFields.groupBy(_._1).mapValues(v => pickCommonType(v.map(_._2)))
+    } else {
+      mergedFields
     }
 
-    StructType(mergedFields)
+    val mergedSchema = StructType(selectedFields.map(t => StructField(t._1, t._2)).toArray)
+    logInfo("Merged table schema: " + mergedSchema.prettyJson)
+    mergedSchema
   }
 
   /**

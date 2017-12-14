@@ -20,6 +20,12 @@ object TypeUtil {
       case "string" => StringType
       case "numeric" => maxValueType(dim.max)
       case "time" | "microtime" => TimestampType
+      case "byte" => ByteType
+      case "ubyte" | "short" => ShortType
+      case "ushort" | "int" => IntegerType
+      case "uint" | "long" | "ulong" => LongType
+      case "float" => FloatType
+      case "double" => DoubleType
       case other => throw new IllegalArgumentException(s"Unknown dimension type: $other")
     }
   }
