@@ -20,7 +20,7 @@ object BinPackAlgorithm {
     val bins = Array.fill[Bin[A]](binsNum)(Bin[A]())
     val maxBinSize = elemsByCount.map(_._2).sum / binsNum
 
-    elemsByCount.sortBy(-_._2).foreach { case (element: A, weight) =>
+    elemsByCount.sortBy(-_._2).foreach { case (element, weight) =>
       val targetBin = bins.find(bin => (bin.total + weight <= maxBinSize)).getOrElse(bins.minBy(_.total))
       targetBin.elements += Tuple2(element, weight)
       targetBin.total += weight
