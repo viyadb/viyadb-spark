@@ -1,6 +1,7 @@
 package com.github.viyadb.spark.streaming
 
 import com.github.viyadb.spark.Configs.{JobConf, TableConf}
+import com.github.viyadb.spark.batch.OutputSchema
 import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.streaming.StreamingProcess.{MicroBatchInfo, MicroBatchTableInfo}
@@ -111,8 +112,13 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     */
   protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {
     val paths = saver.getWrittenPaths()
+
     val tablesInfo = jobConf.tableConfigs.map(tableConfig =>
-      (tableConfig.name, MicroBatchTableInfo(paths = paths(tableConfig.name)))).toMap
+      (tableConfig.name, MicroBatchTableInfo(
+        paths = paths(tableConfig.name),
+        columns = new OutputSchema(tableConfig).columns
+      ))).toMap
+
     MicroBatchInfo(id = time.milliseconds, tables = tablesInfo)
   }
 
@@ -139,7 +145,8 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
 
 object StreamingProcess {
 
-  case class MicroBatchTableInfo(paths: Seq[String]) extends Serializable
+  case class MicroBatchTableInfo(paths: Seq[String],
+                                 columns: Seq[String]) extends Serializable
 
   case class MicroBatchOffsets(topic: String, partition: Int, offset: Long) extends Serializable
 

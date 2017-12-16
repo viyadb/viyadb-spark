@@ -132,6 +132,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     }
     BatchTableInfo(
       paths = Seq(targetPath),
+      columns = outputSchema.columns,
       partitioning = partitioning,
       partitionConf = partitionConf
     )

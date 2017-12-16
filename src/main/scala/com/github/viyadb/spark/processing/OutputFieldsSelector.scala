@@ -9,9 +9,9 @@ import org.apache.spark.sql.DataFrame
   */
 class OutputFieldsSelector(tableConf: TableConf) extends Processor {
 
-  private val selectCols = OutputSchema.columnNames(tableConf)
+  private val outputSchema = new OutputSchema(tableConf)
 
   override def process(df: DataFrame): DataFrame = {
-    df.select(selectCols.head, selectCols.tail: _*)
+    df.select(outputSchema.columns.head, outputSchema.columns.tail: _*)
   }
 }

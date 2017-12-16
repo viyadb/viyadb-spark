@@ -13,11 +13,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
   */
 class MicroBatchLoader(tableConf: TableConf) extends Serializable {
 
-  protected val microBatchSchema = OutputSchema.schema(tableConf)
-
-  protected val indexedMicroBatchSchema = microBatchSchema.fields.zipWithIndex
-
-  protected val timeFormats = getTimeFormats()
+  protected val microBatchSchema = new OutputSchema(tableConf)
 
   protected val columnIndices = getInputColumnIndices()
 
@@ -25,15 +21,15 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
     * @return mapping between schema and column indices
     */
   protected def getInputColumnIndices(): Array[Int] = {
-    val inputCols = OutputSchema.columnNames(tableConf).zipWithIndex.toMap
-    microBatchSchema.fields.map(field => inputCols.get(field.name).get)
+    val inputCols = microBatchSchema.columns.zipWithIndex.toMap
+    microBatchSchema.schema.fields.map(field => inputCols.get(field.name).get)
   }
 
   /**
     * @return time formatters per field index
     */
   protected def getTimeFormats(): Array[Option[TimeFormat]] = {
-    microBatchSchema.fields.map { field =>
+    microBatchSchema.schema.fields.map { field =>
       tableConf.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType)
         .flatMap(_.format)
         .map(format => TimeUtil.strptime2JavaFormat(format))
@@ -42,7 +38,7 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
   }
 
   protected def parseTime(value: String, fieldIdx: Int): java.sql.Timestamp = {
-    timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
+    microBatchSchema.timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
       new java.sql.Timestamp(value.toLong)
     )
   }
@@ -55,7 +51,7 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
     */
   def parseInputRow(values: Array[String]): Row = {
     new Record(
-      indexedMicroBatchSchema.map { case (field, fieldIdx) =>
+      microBatchSchema.indexedSchema.map { case (field, fieldIdx) =>
         val value = values(columnIndices(fieldIdx))
         field.dataType match {
           case ByteType => value.toByte
@@ -84,6 +80,6 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
   }
 
   def createDataFrame(rdd: RDD[Row]) = {
-    SparkSession.builder().getOrCreate().createDataFrame(rdd, microBatchSchema)
+    SparkSession.builder().getOrCreate().createDataFrame(rdd, microBatchSchema.schema)
   }
 }

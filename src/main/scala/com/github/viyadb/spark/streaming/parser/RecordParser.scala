@@ -36,14 +36,14 @@ abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging 
       (tableConf.dimensions ++ tableConf.metrics.filter(!_.isCountType))
     }.map(col => StructField(col.inputField, col.dataType)).distinct
 
+    val mergedSchema = StructType(mergedFields)
+    logInfo("Merged table schema: " + mergedSchema.prettyJson)
+
     val fieldNames = mergedFields.map(_.name).toList
     if (fieldNames.distinct.size != fieldNames.size) {
       throw new IllegalArgumentException("Conflicting types are defined in following fields: " +
         fieldNames.diff(fieldNames.distinct).distinct.mkString(", "))
     }
-
-    val mergedSchema = StructType(mergedFields)
-    logInfo("Merged table schema: " + mergedSchema.prettyJson)
     mergedSchema
   }
 

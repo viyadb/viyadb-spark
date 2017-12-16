@@ -6,10 +6,12 @@ import com.github.viyadb.spark.Configs.NotifierConf
 import com.github.viyadb.spark.util.KafkaUtil
 import kafka.serializer.StringDecoder
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka.{KafkaUtils, OffsetRange}
 
-class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifest[A]) extends Notifier[A] {
+class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifest[A])
+  extends Notifier[A] with Logging {
 
   @transient
   private lazy val producer = createProducer()
@@ -26,8 +28,10 @@ class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifes
   }
 
   override def send(batchId: Long, info: A) = {
+    val message = writeMessage(info)
+    logInfo(s"Sending message: ${message}")
     producer.send(
-      new ProducerRecord[String, String](notifierConf.queue, batchId.toString, writeMessage(info))).get
+      new ProducerRecord[String, String](notifierConf.queue, batchId.toString, message)).get
   }
 
   override def lastMessage = {
@@ -43,8 +47,13 @@ class KafkaNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifes
           if (latestOffset._2 > 0) latestOffset._2 - 1 else latestOffset._2,
           latestOffset._2)).toArray
       )
-      lastElementRdd.collect().map { case (id, value) => (id, readMessage(value)) }.
-        sortBy(_._1).map(_._2).lastOption
+      val lastMessage = lastElementRdd.collect().map { case (id, value) => (id, readMessage(value)) }
+        .sortBy(_._1).map(_._2).lastOption
+
+      if (lastMessage.nonEmpty) {
+        logInfo(s"Read last message: ${lastMessage}")
+      }
+      lastMessage
     }
   }
 

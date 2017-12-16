@@ -9,7 +9,7 @@ import kafka.message.MessageAndMetadata
 import kafka.serializer.StringDecoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaCluster, KafkaUtils}
+import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
 import org.apache.spark.streaming.{StreamingContext, Time}
 
 /**
@@ -38,23 +38,21 @@ class KafkaStreamingProcess(jobConf: JobConf) extends StreamingProcess(jobConf) 
     val latestOffsets = latestOffests()
 
     val storedOffsets = notifier.lastMessage.map { lastMesage =>
-      parseOffsets(lastMesage)
+      lastMesage.offsets.get.map(offset => (TopicAndPartition(offset.topic, offset.partition), offset.offset)).toMap
     }.getOrElse(Map())
 
     latestOffsets.map { case (k, v) => k -> storedOffsets.getOrElse(k, v) }
   }
 
   override protected def createStream(ssc: StreamingContext): DStream[Record] = {
+    val offsets = storedOrLatestOffsets()
+    logInfo(s"Start consuming from offsets: ${offsets}")
+
     KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder, Record](
       ssc,
       Map("metadata.broker.list" -> kafkaConf.brokers.mkString(",")),
-      storedOrLatestOffsets(),
+      offsets,
       (m: MessageAndMetadata[String, String]) => recordParser.parseRecord(m.topic, m.message()).get)
-  }
-
-  private def parseOffsets(offsets: Any): Map[TopicAndPartition, Long] = {
-    offsets.asInstanceOf[Array[(String, Int, Long)]]
-      .map(o => (TopicAndPartition(o._1, o._2), o._3)).toMap
   }
 
   override protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {
