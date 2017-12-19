@@ -6,7 +6,7 @@ import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat}
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
 
@@ -22,6 +22,9 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
   ).getOrElse(new BatchProcessor(tableConf))
 
   lazy private val outputSchema = new OutputSchema(tableConf)
+
+  private val recordCountAcc = SparkSession.builder().getOrCreate().sparkContext
+    .longAccumulator(s"${tableConf.name} record count")
 
   private def previousBatch(ts: Long): Option[Long] = {
     val periodMillis = indexerConf.batch.batchDurationInMillis
@@ -64,9 +67,9 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
       .toMap
 
     val usedPartitions = valueToPartition.values.toSet
-    val unusedPartitions = (0 to numPartitions-1).filter(!usedPartitions.contains(_)).iterator
+    val unusedPartitions = (0 until numPartitions).filter(!usedPartitions.contains(_)).iterator
 
-    (0 to numPartitions-1).map(value => valueToPartition.getOrElse(value, unusedPartitions.next()))
+    (0 until numPartitions).map(value => valueToPartition.getOrElse(value, unusedPartitions.next()))
   }
 
   /**
@@ -115,6 +118,7 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     */
   def start(batchId: Long): BatchTableInfo = {
     val targetPath = s"${indexerConf.batchPrefix}/${tableConf.name}/dt=$batchId"
+
     val partitionConf = Seq(tableConf.partitioning, indexerConf.batch.partitioning)
       .find(_.nonEmpty).flatten
 
@@ -130,11 +134,13 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
         FileSystemUtil.delete(tmpPath)
       }
     }
+
     BatchTableInfo(
       paths = Seq(targetPath),
       columns = outputSchema.columns,
       partitioning = partitioning,
-      partitionConf = partitionConf
+      partitionConf = partitionConf,
+      recordCount = recordCountAcc.value
     )
   }
 }

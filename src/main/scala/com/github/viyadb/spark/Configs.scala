@@ -1,6 +1,7 @@
 package com.github.viyadb.spark
 
 import com.github.viyadb.spark.util.{ConsulClient, JodaSerializers, TypeUtil}
+import com.timgroup.statsd.NonBlockingStatsDClient
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.DataType
 import org.joda.time.{Interval, Period}
@@ -142,12 +143,25 @@ object Configs extends Logging {
   }
 
   /**
+    * Statsd configuration
+    */
+  case class StatsdConf(host: String,
+                        port: Option[Int],
+                        prefix: Option[String]) {
+
+    def createClient = {
+      new NonBlockingStatsDClient(prefix.getOrElse(""), host, port.getOrElse(8125))
+    }
+  }
+
+  /**
     * Indexer configuration
     */
   case class IndexerConf(deepStorePath: String,
                          realTime: RealTimeConf,
                          batch: BatchConf,
-                         tables: Seq[String] = Seq()) extends Serializable {
+                         tables: Seq[String] = Seq(),
+                         statsd: Option[StatsdConf] = None) extends Serializable {
     /**
       * @return prefix under which batch process artifacts will be saved
       */

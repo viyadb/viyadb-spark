@@ -4,6 +4,7 @@ import com.github.viyadb.spark.Configs.{JobConf, PartitionConf}
 import com.github.viyadb.spark.batch.BatchProcess.BatchInfo
 import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.streaming.StreamingProcess.MicroBatchInfo
+import com.timgroup.statsd.StatsDClient
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 
@@ -13,6 +14,9 @@ import org.apache.spark.sql.SparkSession
 class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
 
   lazy private val notifier: Notifier[BatchInfo] = Notifier.create(jobConf.indexer.batch.notifier)
+
+  @transient
+  lazy protected val statsd: Option[StatsDClient] = jobConf.indexer.statsd.map(_.createClient)
 
   /**
     * Find unprocessed real-time micro-batches from the two notification channels
@@ -51,15 +55,27 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
       .toSeq.sortBy(_._1)
   }
 
+  protected def processTable(tableName: String, batchId: Long): BatchProcess.BatchTableInfo = {
+    val startTime = System.currentTimeMillis
+
+    val tableConf = jobConf.tableConfigs.find(conf => conf.name == tableName).get
+    val tableInfo = new TableBatchProcess(jobConf.indexer, tableConf).start(batchId)
+
+    statsd.foreach(client => {
+      client.recordExecutionTime(s"batch.tables.$tableName.process_time", System.currentTimeMillis - startTime)
+      client.count(s"batch.tables.$tableName.saved_records", tableInfo.recordCount)
+    })
+
+    tableInfo
+  }
+
   /**
     * Starts the batch processing
     */
   def start(spark: SparkSession): Unit = {
     unprocessedBatches().map { case (batchId, microBatches, tables) =>
-      val tablesInfo = tables.par.map { tableName =>
-        (tableName, new TableBatchProcess(jobConf.indexer, jobConf.tableConfigs.find(conf => conf.name == tableName).get)
-          .start(batchId))
-      }.seq.toMap
+      val tablesInfo = tables.par.map(tableName => (tableName, processTable(tableName, batchId)))
+        .seq.toMap
       BatchInfo(id = batchId, tables = tablesInfo, microBatches = microBatches)
     }.foreach(batchInfo => notifier.send(batchInfo.id, batchInfo))
   }
@@ -70,7 +86,8 @@ object BatchProcess {
   case class BatchTableInfo(paths: Seq[String],
                             columns: Seq[String],
                             partitioning: Option[Seq[Int]],
-                            partitionConf: Option[PartitionConf]) extends Serializable
+                            partitionConf: Option[PartitionConf],
+                            recordCount: Long) extends Serializable
 
   case class BatchInfo(id: Long,
                        tables: Map[String, BatchTableInfo],

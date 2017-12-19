@@ -6,6 +6,7 @@ import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.streaming.StreamingProcess.{MicroBatchInfo, MicroBatchTableInfo}
 import com.github.viyadb.spark.streaming.parser.{Record, RecordParser}
+import com.timgroup.statsd.StatsDClient
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
@@ -24,9 +25,12 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     ).getOrElse(new StreamingProcessor(tableConf)))
   ).toMap
 
-  lazy protected val saver: MicroBatchSaver = new MicroBatchSaver(jobConf.indexer)
+  lazy protected val saver: MicroBatchSaver = new MicroBatchSaver(jobConf)
 
   lazy protected val notifier: Notifier[MicroBatchInfo] = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
+
+  @transient
+  lazy protected val statsd: Option[StatsDClient] = jobConf.indexer.statsd.map(_.createClient)
 
   /**
     * Method for initializing DStream
@@ -65,6 +69,18 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     processors(tableConf.name).process(df)
   }
 
+  protected def processTable(tableConf: TableConf, df: DataFrame, time: Time): Unit = {
+    val startTime = System.currentTimeMillis
+
+    val tableDf = processDataFrame(tableConf, df)
+    saveDataFrame(tableConf, tableDf, time)
+
+    statsd.foreach(client => {
+      client.recordExecutionTime(s"realtime.tables.${tableConf.name}.process_time",
+        System.currentTimeMillis - startTime)
+    })
+  }
+
   /**
     * Main processing method for the input RDD, which is called once per received batch.
     *
@@ -72,16 +88,19 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * @param time Batch timestamp
     */
   protected def processRDD(rdd: RDD[Record], time: Time): Unit = {
+    val startTime = System.currentTimeMillis
+
     val cachedRdd = cacheRDD(rdd)
 
     val df = createDataFrame(cachedRdd)
 
-    jobConf.tableConfigs.foreach { tableConf =>
-      val tableDf = processDataFrame(tableConf, df)
-      saveDataFrame(tableConf, tableDf, time)
-    }
+    jobConf.tableConfigs.foreach(processTable(_, df, time))
 
     uncacheRDD(rdd)
+
+    statsd.foreach(client => {
+      client.recordExecutionTime("realtime.process_time", System.currentTimeMillis - startTime)
+    })
 
     sendNotification(time, createNotification(rdd, time))
   }
@@ -94,7 +113,15 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * @param time      Batch timestamp
     */
   protected def saveDataFrame(tableConf: TableConf, df: DataFrame, time: Time): Unit = {
-    saver.save(tableConf, df, time)
+    val startTime = System.currentTimeMillis
+
+    val recordsCount = saver.save(tableConf, df, time)
+
+    statsd.foreach(client => {
+      client.recordExecutionTime(s"realtime.tables.${tableConf.name}.save_time",
+        System.currentTimeMillis - startTime)
+      client.count(s"realtime.tables.${tableConf.name}.saved_records", recordsCount)
+    })
   }
 
   /**
@@ -111,13 +138,19 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * Creates a notification containing the micro-batch information
     */
   protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {
-    val paths = saver.getWrittenPaths()
+    val paths = saver.getAndResetWrittenPaths()
+    val recordsCount = saver.getAndResetRecordsCount()
 
     val tablesInfo = jobConf.tableConfigs.map(tableConfig =>
-      (tableConfig.name, MicroBatchTableInfo(
-        paths = paths(tableConfig.name),
-        columns = new OutputSchema(tableConfig).columns
-      ))).toMap
+      (
+        tableConfig.name,
+        MicroBatchTableInfo(
+          paths = paths(tableConfig.name),
+          columns = new OutputSchema(tableConfig).columns,
+          recordCount = recordsCount(tableConfig.name)
+        )
+      )
+    ).toMap
 
     MicroBatchInfo(id = time.milliseconds, tables = tablesInfo)
   }
@@ -146,7 +179,8 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
 object StreamingProcess {
 
   case class MicroBatchTableInfo(paths: Seq[String],
-                                 columns: Seq[String]) extends Serializable
+                                 columns: Seq[String],
+                                 recordCount: Long) extends Serializable
 
   case class MicroBatchOffsets(topic: String, partition: Int, offset: Long) extends Serializable
 
