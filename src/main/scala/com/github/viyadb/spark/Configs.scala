@@ -100,7 +100,8 @@ object Configs extends Logging {
                           `type`: String = "unknown") extends Serializable
 
   case class KafkaSourceConf(topics: Seq[String],
-                             brokers: Seq[String]) extends Serializable
+                             brokers: Seq[String],
+                             earliest: Option[Boolean] = None) extends Serializable
 
   /**
     * Defines how incoming in real-time data is to be parsed

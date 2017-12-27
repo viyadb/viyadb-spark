@@ -20,28 +20,22 @@ class KafkaStreamingProcess(jobConf: JobConf) extends StreamingProcess(jobConf) 
   val kafkaConf = jobConf.indexer.realTime.kafkaSource.get
 
   /**
-    * Dirty method (because of reflection use) of fetching latest offsets from Kafka brokers.
-    *
-    * @return Offsets per topic and partition
-    */
-  protected def latestOffests(): Map[TopicAndPartition, Long] = {
-    logInfo("Fetching latest offsets from Kafka")
-    KafkaUtil.latestOffsets(kafkaConf.brokers.mkString(","), kafkaConf.topics.toSet)
-  }
-
-  /**
     * Find offsets in latest notification, or retrieve latest offsets from target Kafka broker
     *
     * @return
     */
   protected def storedOrLatestOffsets(): Map[TopicAndPartition, Long] = {
-    val latestOffsets = latestOffests()
+    val kafkaOffsets = if (kafkaConf.earliest.getOrElse(true)) {
+      KafkaUtil.earliestOffsets(kafkaConf.brokers.mkString(","), kafkaConf.topics.toSet)
+    } else {
+      KafkaUtil.latestOffsets(kafkaConf.brokers.mkString(","), kafkaConf.topics.toSet)
+    }
 
     val storedOffsets = notifier.lastMessage.map { lastMesage =>
       lastMesage.offsets.get.map(offset => (TopicAndPartition(offset.topic, offset.partition), offset.offset)).toMap
     }.getOrElse(Map())
 
-    latestOffsets.map { case (k, v) => k -> storedOffsets.getOrElse(k, v) }
+    kafkaOffsets.map { case (k, v) => k -> storedOffsets.getOrElse(k, v) }
   }
 
   override protected def createStream(ssc: StreamingContext): DStream[Record] = {
@@ -52,7 +46,8 @@ class KafkaStreamingProcess(jobConf: JobConf) extends StreamingProcess(jobConf) 
       ssc,
       Map("metadata.broker.list" -> kafkaConf.brokers.mkString(",")),
       offsets,
-      (m: MessageAndMetadata[String, String]) => recordParser.parseRecord(m.topic, m.message()).get)
+      (m: MessageAndMetadata[String, String]) => recordParser.parseRecord(m.topic, m.message()).getOrElse(null))
+        .filter(_ != null)
   }
 
   override protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {

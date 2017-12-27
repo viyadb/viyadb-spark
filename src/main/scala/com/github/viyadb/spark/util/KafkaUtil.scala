@@ -1,11 +1,14 @@
 package com.github.viyadb.spark.util
 
 import kafka.common.TopicAndPartition
+import org.apache.spark.internal.Logging
 import org.apache.spark.streaming.kafka.KafkaCluster
 
-object KafkaUtil {
+object KafkaUtil extends Logging {
 
   def latestOffsets(brokers: String, topics: Set[String]): Map[TopicAndPartition, Long] = {
+    logInfo("Fetching latest offsets from Kafka")
+
     val kafkaParams = Map("metadata.broker.list" -> brokers)
     val kafkaCluster = new KafkaCluster(kafkaParams)
     val offsets = for {
@@ -18,6 +21,8 @@ object KafkaUtil {
   }
 
   def earliestOffsets(brokers: String, topics: Set[String]): Map[TopicAndPartition, Long] = {
+    logInfo("Fetching earliest offsets from Kafka")
+
     val kafkaParams = Map("metadata.broker.list" -> brokers)
     val kafkaCluster = new KafkaCluster(kafkaParams)
     val offsets = for {

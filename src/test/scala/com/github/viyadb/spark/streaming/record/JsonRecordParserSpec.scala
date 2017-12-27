@@ -175,10 +175,25 @@ class JsonRecordParserSpec extends UnitSpec {
         |    "sessions": 1,
         |    "revenue": 8
         |  }
+        |}""",
+      """{ broken JSON shouldn't make the process fail
+        |  "meta: {
+        |    "app": "q.w.e",
+        |    "city": "San Francisco",
+        |    "time": "2016-12-12 01:20:01"
+        |  },
+        |  "attr": {
+        |    "network": "facebook",
+        |    "network_id": "123"
+        |  },
+        |  "stats": {
+        |    "sessions": 1,
+        |    "revenue": 8
+        |  }
         |}"""
     ).map(_.stripMargin)
 
-    val rows = jsonContent.map(json => recordParser.parseRecord("", json).get)
+    val rows = jsonContent.map(json => recordParser.parseRecord("", json)).filter(_.nonEmpty).map(_.get)
     assert(rows.size == 3)
 
     assert(rows(0) == new Record(Array("a.b.c", new Timestamp(

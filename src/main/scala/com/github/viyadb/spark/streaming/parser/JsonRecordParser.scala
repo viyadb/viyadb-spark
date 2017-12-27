@@ -10,6 +10,8 @@ import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider
 import com.jayway.jsonpath.{Configuration, JsonPath}
 import org.apache.spark.sql.types._
 
+import scala.util.{Failure, Success, Try}
+
 class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
 
   @transient
@@ -58,9 +60,9 @@ class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
     })
   }
 
-  override def parseRecord(topic: String, record: String) = {
-    val doc = jsonMapper.readValue[java.util.Map[String, Object]](record, typeReference)
-    Some(
+  override def parseRecord(topic: String, record: String): Option[Record] = {
+    Try {
+      val doc = jsonMapper.readValue[java.util.Map[String, Object]](record, typeReference)
       parseJavaObjects(
         jsonPaths.map(paths => paths.map(path =>
           path.read(doc.asInstanceOf[Object], jsonPathConf).asInstanceOf[Object]
@@ -68,6 +70,12 @@ class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
           inputSchema.fields.map(f => doc.get(f.name))
         )
       )
-    )
+    } match {
+      case Success(v) => Some(v)
+      case Failure(e) => {
+        logWarning(e.getMessage)
+        None
+      }
+    }
   }
 }
