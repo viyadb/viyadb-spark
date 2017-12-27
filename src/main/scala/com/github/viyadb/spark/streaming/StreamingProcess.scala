@@ -90,7 +90,7 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
   protected def processRDD(rdd: RDD[Record], time: Time): Unit = {
     val startTime = System.currentTimeMillis
 
-    val cachedRdd = cacheRDD(rdd)
+    val cachedRdd = cacheRDD(rdd.filter(_ != null))
 
     val df = createDataFrame(cachedRdd)
 

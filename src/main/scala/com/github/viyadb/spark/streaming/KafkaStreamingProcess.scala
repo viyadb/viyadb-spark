@@ -47,7 +47,6 @@ class KafkaStreamingProcess(jobConf: JobConf) extends StreamingProcess(jobConf) 
       Map("metadata.broker.list" -> kafkaConf.brokers.mkString(",")),
       offsets,
       (m: MessageAndMetadata[String, String]) => recordParser.parseRecord(m.topic, m.message()).getOrElse(null))
-        .filter(_ != null)
   }
 
   override protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {
