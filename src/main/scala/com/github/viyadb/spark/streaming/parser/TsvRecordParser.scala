@@ -1,6 +1,6 @@
 package com.github.viyadb.spark.streaming.parser
 
-import com.github.viyadb.spark.Configs.{JobConf, ParseSpecConf}
+import com.github.viyadb.spark.Configs.JobConf
 import org.apache.spark.sql.types._
 
 class TsvRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
@@ -32,7 +32,7 @@ class TsvRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
       })
   }
 
-  override def parseRecord(topic: String, record: String) = {
+  override def parseRecord(topic: String, record: String): Some[Record] = {
     Some(
       parseInputRow(record.split(delimiter))
     )

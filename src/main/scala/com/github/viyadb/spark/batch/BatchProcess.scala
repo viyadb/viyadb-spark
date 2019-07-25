@@ -13,7 +13,7 @@ import org.apache.spark.sql.SparkSession
   */
 class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
 
-  lazy private val notifier: Notifier[BatchInfo] = Notifier.create(jobConf.indexer.batch.notifier)
+  lazy private val notifier: Notifier[BatchInfo] = Notifier.create(jobConf, jobConf.indexer.batch.notifier)
 
   @transient
   lazy protected val statsd: Option[StatsDClient] = jobConf.indexer.statsd.map(_.createClient)
@@ -44,7 +44,7 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
     }
 
     // Read all notifications send by the real-time process
-    val realTimeNotifier = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
+    val realTimeNotifier = Notifier.create[MicroBatchInfo](jobConf, jobConf.indexer.realTime.notifier)
     realTimeNotifier.allMessages.flatMap { mbInfo =>
       mbInfo.tables.flatMap { case (tableName, tableInfo) =>
         tableInfo.paths.map(extractBatchIdFromPath).map(batchId => (batchId, mbInfo.id, tableName))

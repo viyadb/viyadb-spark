@@ -9,14 +9,14 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging {
 
-  protected val parseSpec = jobConf.indexer.realTime.parseSpec.getOrElse(ParseSpecConf())
+  protected val parseSpec: ParseSpecConf = jobConf.indexer.realTime.parseSpec.getOrElse(ParseSpecConf())
 
-  protected val inputSchema = mergedTablesSchema()
+  protected val inputSchema: StructType = mergedTablesSchema()
 
-  protected val indexedInputSchema = inputSchema.fields.zipWithIndex
+  protected val indexedInputSchema: Array[(StructField, Int)] = inputSchema.fields.zipWithIndex
 
-  private val timeFormats = inputSchema.map { fieldType =>
-    parseSpec.timeFormats.flatMap(_.get(fieldType.name)).map(TimeUtil.strptime2JavaFormat(_))
+  private val timeFormats: Array[Option[TimeUtil.TimeFormat]] = inputSchema.map { fieldType =>
+    parseSpec.timeFormats.flatMap(_.get(fieldType.name)).map(TimeUtil.strptime2JavaFormat)
   }.toArray
 
   protected def pickCommonType(dataTypes: Seq[DataType]): DataType = {
@@ -33,7 +33,7 @@ abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging 
     */
   protected def mergedTablesSchema(): StructType = {
     val mergedFields = jobConf.tableConfigs.flatMap { tableConf =>
-      (tableConf.dimensions ++ tableConf.metrics.filter(!_.isCountType))
+      tableConf.dimensions ++ tableConf.metrics.filter(!_.isCountType)
     }.map(col => StructField(col.inputField, col.dataType)).distinct
 
     val mergedSchema = StructType(mergedFields)

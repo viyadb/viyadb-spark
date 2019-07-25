@@ -83,7 +83,7 @@ mvn package
 ## Running
 
 ```bash
-spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.2-uberjar.jar \
+spark-submit --class <jobClass> target/viyadb-spark_2.11-0.1.0-uberjar.jar \
     --consul-host "<consul host>" --consul-prefix "viyadb" \
     --indexer-id "<indexer ID>"
 ```
@@ -94,5 +94,5 @@ use `com.github.viyadb.spark.batch.Job`.
 To see all available options, run:
 
 ```bash
-spark-submit --class <jobClass> target/viyadb-spark_2.11-0.0.2-uberjar.jar --help
+spark-submit --class <jobClass> target/viyadb-spark_2.11-0.1.0-uberjar.jar --help
 ```
