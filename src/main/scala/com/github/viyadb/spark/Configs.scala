@@ -150,7 +150,7 @@ object Configs extends Logging {
                         port: Option[Int],
                         prefix: Option[String]) {
 
-    def createClient = {
+    def createClient: NonBlockingStatsDClient = {
       new NonBlockingStatsDClient(prefix.getOrElse(""), host, port.getOrElse(8125))
     }
   }
@@ -162,7 +162,8 @@ object Configs extends Logging {
                          realTime: RealTimeConf,
                          batch: BatchConf,
                          tables: Seq[String] = Seq(),
-                         statsd: Option[StatsdConf] = None) extends Serializable {
+                         statsd: Option[StatsdConf] = None,
+                         id: String = "viyadb-indexer") extends Serializable {
     /**
       * @return prefix under which batch process artifacts will be saved
       */

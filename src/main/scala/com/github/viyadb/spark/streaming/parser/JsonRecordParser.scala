@@ -23,7 +23,7 @@ class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
 
   @transient
   private lazy val jsonPaths = parseSpec.fieldMapping
-    .map(mapping => inputSchema.fields.map(f => mapping.get(f.name).get))
+    .map(mapping => inputSchema.fields.map(f => mapping(f.name)))
     .map(paths => paths.map(path => JsonPath.compile(path)))
 
   class SerializableTypeReference extends TypeReference[java.util.Map[String, Object]]
@@ -72,10 +72,9 @@ class JsonRecordParser(jobConf: JobConf) extends RecordParser(jobConf) {
       )
     } match {
       case Success(v) => Some(v)
-      case Failure(e) => {
+      case Failure(e) =>
         logWarning(e.getMessage)
         None
-      }
     }
   }
 }

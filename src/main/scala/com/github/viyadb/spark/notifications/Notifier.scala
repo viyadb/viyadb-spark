@@ -1,6 +1,6 @@
 package com.github.viyadb.spark.notifications
 
-import com.github.viyadb.spark.Configs.NotifierConf
+import com.github.viyadb.spark.Configs.{JobConf, NotifierConf}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization.{read, write}
 
@@ -36,10 +36,10 @@ abstract class Notifier[A <: AnyRef](implicit m: Manifest[A]) extends Serializab
 }
 
 object Notifier {
-  def create[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifest[A]): Notifier[A] = {
+  def create[A <: AnyRef](jobConf: JobConf, notifierConf: NotifierConf)(implicit m: Manifest[A]): Notifier[A] = {
     notifierConf.`type` match {
-      case "kafka" => new KafkaNotifier[A](notifierConf)
-      case "file" => new FileNotifier[A](notifierConf)
+      case "kafka" => new KafkaNotifier[A](jobConf, notifierConf)
+      case "file" => new FileNotifier[A](jobConf, notifierConf)
       case other => throw new IllegalArgumentException(s"Unsupported notifier type: $other")
     }
   }

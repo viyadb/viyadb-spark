@@ -141,7 +141,7 @@ class StreamingProcessSpec extends UnitSpec with BeforeAndAfter {
       StreamingProcess.create(jobConf).start(ssc)
 
       ssc.start()
-      ssc.stop(false, true)
+      ssc.stop(stopSparkContext = false, stopGracefully = true)
       ssc.awaitTermination()
 
       val actual = ss.sparkContext.textFile(jobConf.indexer.realtimePrefix + "/foo/*/*/*.gz")

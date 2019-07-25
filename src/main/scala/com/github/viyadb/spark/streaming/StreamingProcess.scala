@@ -27,7 +27,8 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
 
   lazy protected val saver: MicroBatchSaver = new MicroBatchSaver(jobConf)
 
-  lazy protected val notifier: Notifier[MicroBatchInfo] = Notifier.create[MicroBatchInfo](jobConf.indexer.realTime.notifier)
+  lazy protected val notifier: Notifier[MicroBatchInfo] = Notifier.create[MicroBatchInfo](
+    jobConf, jobConf.indexer.realTime.notifier)
 
   @transient
   lazy protected val statsd: Option[StatsDClient] = jobConf.indexer.statsd.map(_.createClient)
@@ -36,9 +37,21 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * Method for initializing DStream
     *
     * @param ssc Spark streaming context
-    * @return new stream
+    * @return new direct stream
     */
-  protected def createStream(ssc: StreamingContext): DStream[Record]
+  protected def createStream(ssc: StreamingContext): DStream[Record] = ???
+
+  /**
+    * Creates stream and iterates on RDD while providing context of the current batch.
+    *
+    * @param ssc     Spark streaming context
+    * @param handler Callback for RDD that accepts: RDD itself, batch time and any additional parameter
+    *                representing batch context (default implementation passes <code>null</code> value).
+    *                Batch context could be a Kafka offset range for example.
+    */
+  protected def foreachStreamRDD(ssc: StreamingContext, handler: (RDD[Record], Time, Any) => Unit): Unit = {
+    createStream(ssc).foreachRDD { (rdd, time) => handler(rdd, time, null) }
+  }
 
   /**
     * This method is called prior to any processing in order to improve performance
@@ -84,25 +97,26 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
   /**
     * Main processing method for the input RDD, which is called once per received batch.
     *
-    * @param rdd  Input RDD
-    * @param time Batch timestamp
+    * @param rdd     Input RDD
+    * @param time    Batch timestamp
+    * @param context Batch context
     */
-  protected def processRDD(rdd: RDD[Record], time: Time): Unit = {
+  protected def processRDD(rdd: RDD[Record], time: Time, context: Any = null): Unit = {
     val startTime = System.currentTimeMillis
 
-    val cachedRdd = cacheRDD(rdd.filter(_ != null))
+    val cachedRDD = cacheRDD(rdd.filter(_ != null))
 
-    val df = createDataFrame(cachedRdd)
+    val df = createDataFrame(cachedRDD)
 
     jobConf.tableConfigs.foreach(processTable(_, df, time))
 
-    uncacheRDD(rdd)
+    uncacheRDD(cachedRDD)
 
     statsd.foreach(client => {
       client.recordExecutionTime("realtime.process_time", System.currentTimeMillis - startTime)
     })
 
-    sendNotification(time, createNotification(rdd, time))
+    sendNotification(time, createNotification(cachedRDD, time, context))
   }
 
   /**
@@ -136,8 +150,12 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
 
   /**
     * Creates a notification containing the micro-batch information
+    *
+    * @param rdd     Batch RDD
+    * @param time    Batch timestamp
+    * @param context Batch context
     */
-  protected def createNotification(rdd: RDD[Record], time: Time): MicroBatchInfo = {
+  protected def createNotification(rdd: RDD[Record], time: Time, context: Any = null): MicroBatchInfo = {
     val paths = saver.getAndResetWrittenPaths()
     val recordsCount = saver.getAndResetRecordsCount()
 
@@ -159,6 +177,7 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * Sends the notification
     */
   protected def sendNotification(time: Time, info: MicroBatchInfo): Unit = {
+    logInfo(s"Sending notification on batch ${time.milliseconds}")
     notifier.send(time.milliseconds, info)
   }
 
@@ -168,11 +187,11 @@ abstract class StreamingProcess(jobConf: JobConf) extends Serializable with Logg
     * @param ssc Stream context
     */
   def start(ssc: StreamingContext): Unit = {
-    createStream(ssc).foreachRDD { (rdd, time) =>
+    foreachStreamRDD(ssc, (rdd, time, context) =>
       if (rdd.toLocalIterator.nonEmpty) {
-        processRDD(rdd, time)
+        processRDD(rdd, time, context)
       }
-    }
+    )
   }
 }
 

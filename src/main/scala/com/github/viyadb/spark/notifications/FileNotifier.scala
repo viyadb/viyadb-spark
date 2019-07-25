@@ -1,9 +1,9 @@
 package com.github.viyadb.spark.notifications
 
-import com.github.viyadb.spark.Configs.NotifierConf
+import com.github.viyadb.spark.Configs.{JobConf, NotifierConf}
 import com.github.viyadb.spark.util.FileSystemUtil
 
-class FileNotifier[A <: AnyRef](notifierConf: NotifierConf)(implicit m: Manifest[A]) extends Notifier[A] {
+class FileNotifier[A <: AnyRef](jobConf: JobConf, notifierConf: NotifierConf)(implicit m: Manifest[A]) extends Notifier[A] {
 
   override def send(batchId: Long, info: A) = {
     FileSystemUtil.setContent(s"${notifierConf.channel}/${notifierConf.queue}/${batchId}.msg", writeMessage(info))
