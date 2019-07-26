@@ -41,6 +41,11 @@ class Job {
         .getOrElse(Seconds(5)))
   }
 
+  def startAndAwaitTermination(ssc: StreamingContext): Unit = {
+    ssc.start()
+    ssc.awaitTermination()
+  }
+
   def run(args: Array[String]): Unit = {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
@@ -49,8 +54,7 @@ class Job {
 
     StreamingProcess.create(config).start(ssc)
 
-    ssc.start()
-    ssc.awaitTermination()
+    startAndAwaitTermination(ssc);
   }
 }
 

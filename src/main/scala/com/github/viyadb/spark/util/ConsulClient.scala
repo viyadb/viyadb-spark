@@ -4,7 +4,6 @@ import java.io.IOException
 
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
-
 import scalaj.http._
 
 class ConsulClient(hostname: String = "localhost", port: Int = 8500, token: Option[String] = None) extends Serializable {
@@ -12,7 +11,7 @@ class ConsulClient(hostname: String = "localhost", port: Int = 8500, token: Opti
   class ConsulException(msg: String) extends IOException(msg)
 
   protected def get(path: String): String = {
-    val r = Http(s"http://${hostname}:${port}/${path.stripPrefix("/")}")
+    val r = Http(s"http://$hostname:$port/${path.stripPrefix("/")}")
       .option(HttpOptions.connTimeout(3000)).asString
     if (!r.is2xx) {
       throw new ConsulException("Wrong HTTP status returned")

@@ -25,13 +25,13 @@ class ConsulClientSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAft
   }
 
   "ConsulClient" should "read written values" in {
-    var consulClient = new ConsulClient(consul.getContainerIpAddress, consul.getFirstMappedPort)
+    val consulClient = new ConsulClient(consul.getContainerIpAddress, consul.getFirstMappedPort)
 
     consulClient.kvPut("/first", "foo")
     assert(consulClient.kvGet("/first") == "foo")
     assert(consulClient.kvGet("first") == "foo")
 
     consulClient.kvPut("second", "bar")
-    assert(consulClient.kvList("/").toSeq == Seq("first", "second"))
+    assert(consulClient.kvList("/") == Seq("first", "second"))
   }
 }
