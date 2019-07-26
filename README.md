@@ -5,6 +5,8 @@ Data processing backend (indexer) for ViyaDB based on Spark.
 
 [![Build Status](https://travis-ci.org/viyadb/viyadb-spark.png)](https://travis-ci.org/viyadb/viyadb-spark)
 
+[![codecov.io](https://codecov.io/github/viyadb/viyadb-spark/coverage.svg?branch=master)](https://codecov.io/github/viyadb/viyadb-spark?branch=master)
+
 There are two processes defined in this project:
 
  * Streaming process
@@ -66,7 +68,7 @@ Batch process does the following:
 
 ## Prerequisites
 
- * [Consul](http://www.consul.io)
+ * [Consul](https://www.consul.io)
  
 Consul is used for storing configuration as well as for synchronizing different parts that ViyaDB cluster consists of.
 For running either real-time or batch processes the following configurations must present in Consul:

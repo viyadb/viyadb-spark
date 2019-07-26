@@ -6,6 +6,7 @@ import java.util.{Properties, TimeZone}
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.streaming.{KafkaStreamingProcess, StreamingProcess}
 import org.apache.commons.io.FileUtils
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
@@ -62,6 +63,9 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
     }
     if (producer != null) {
       producer.close()
+    }
+    if (consumer != null) {
+      consumer.close()
     }
     if (kafka != null) {
       kafka.stop()
@@ -173,5 +177,34 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
     } finally {
       FileUtils.deleteDirectory(tmpDir)
     }
+  }
+
+  "KafkaNotifier" should "support sending and receiving messages" in {
+    val indexerConf = IndexerConf(
+      deepStorePath = "",
+      realTime = RealTimeConf(
+        notifier = NotifierConf(
+          `type` = "kafka",
+          channel = kafkaBrokers,
+          queue = "notifications2"
+        )
+      ),
+      batch = BatchConf()
+    )
+    val jobConf = JobConf(
+      indexer = indexerConf,
+      tableConfigs = Seq()
+    )
+
+    val kafkaNotifier = Notifier.create[String](jobConf, indexerConf.realTime.notifier)
+    kafkaNotifier.send(1, "hello")
+    kafkaNotifier.send(2, "world")
+
+    assert(kafkaNotifier.lastMessage.get == "world")
+    assert(kafkaNotifier.allMessages == Seq("hello", "world"))
+
+    kafkaNotifier.send(3, "again")
+    assert(kafkaNotifier.lastMessage.get == "again")
+    assert(kafkaNotifier.allMessages == Seq("hello", "world", "again"))
   }
 }

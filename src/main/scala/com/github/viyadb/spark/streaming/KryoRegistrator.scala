@@ -7,6 +7,7 @@ import com.github.viyadb.spark.notifications.{FileNotifier, KafkaNotifier, Notif
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
 import com.github.viyadb.spark.streaming.parser.{JsonRecordParser, Record, RecordParser, TsvRecordParser}
 import com.github.viyadb.spark.util.ConsulClient
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.streaming.receiver.Receiver
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
 
