@@ -63,6 +63,7 @@ object TimeUtil {
     'B' -> "MMMM",
     'c' -> "EEE MMM dd HH:mm:ss yyyy",
     'd' -> "dd",
+    'f' -> "SSS",
     'H' -> "HH",
     'I' -> "hh",
     'j' -> "DDD",
@@ -76,10 +77,11 @@ object TimeUtil {
     'X' -> "HH:mm:ss",
     'y' -> "yy",
     'Y' -> "yyyy",
-    'Z' -> "zzz"
+    'Z' -> "zzz",
+    'z' -> "Z"
   )
 
-  private val notSupported = Set('w', 'f')
+  private val notSupported = Set('w')
 
   def convertStrptimeFormat(format: String): String = {
     val builder = new StringBuilder()

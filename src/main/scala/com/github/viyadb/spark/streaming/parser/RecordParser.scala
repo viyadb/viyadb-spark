@@ -6,6 +6,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DataType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.joda.time.DateTime
+
+import scala.util.Try
 
 abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging {
 
@@ -52,7 +55,11 @@ abstract class RecordParser(jobConf: JobConf) extends Serializable with Logging 
     */
   protected def parseTime(value: String, fieldIdx: Int): java.sql.Timestamp = {
     timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
-      new java.sql.Timestamp(value.toLong)
+      new java.sql.Timestamp(
+        Try {
+          DateTime.parse(value).getMillis
+        }.getOrElse(value.toLong)
+      )
     )
   }
 
