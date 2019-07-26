@@ -5,7 +5,7 @@ import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import com.github.viyadb.spark.streaming.StreamingProcess.MicroBatchInfo
+import com.github.viyadb.spark.notifications.Notifier
 import com.github.viyadb.spark.streaming.StreamingProcessSpec.TestStreamingProcess
 import com.github.viyadb.spark.streaming.parser.{Record, RecordParser}
 import org.apache.commons.io.FileUtils
@@ -159,6 +159,42 @@ class StreamingProcessSpec extends UnitSpec with BeforeAndAfter {
 
       assert(actual == expected)
 
+    } finally {
+      FileUtils.deleteDirectory(tmpDir)
+    }
+  }
+
+  "FileNotifier" should "support sending and receiving messages" in {
+    val tmpDir = File.createTempFile("viyadb-spark-test", null)
+    tmpDir.delete()
+
+    try {
+      val indexerConf = IndexerConf(
+        deepStorePath = "",
+        realTime = RealTimeConf(
+          notifier = NotifierConf(
+            `type` = "file",
+            channel = tmpDir.getAbsolutePath,
+            queue = "notifications"
+          )
+        ),
+        batch = BatchConf()
+      )
+      val jobConf = JobConf(
+        indexer = indexerConf,
+        tableConfigs = Seq()
+      )
+
+      val fileNotifier = Notifier.create[String](jobConf, indexerConf.realTime.notifier)
+      fileNotifier.send(1, "hello")
+      fileNotifier.send(2, "world")
+
+      assert(fileNotifier.lastMessage.get == "world")
+      assert(fileNotifier.allMessages == Seq("hello", "world"))
+
+      fileNotifier.send(3, "again")
+      assert(fileNotifier.lastMessage.get == "again")
+      assert(fileNotifier.allMessages == Seq("hello", "world", "again"))
     } finally {
       FileUtils.deleteDirectory(tmpDir)
     }

@@ -62,9 +62,8 @@ class KafkaNotifier[A <: AnyRef](jobConf: JobConf, notifierConf: NotifierConf)(i
         LocationStrategies.PreferConsistent
       )
 
-      val lastMessage = lastElementRdd.collect().map {
-        record => (record.key(), readMessage(record.value()))
-      }.sortBy(_._1).map(_._2).lastOption
+      val lastMessage = lastElementRdd.map { r => (r.key(), readMessage(r.value())) }
+        .collect().sortBy(_._1).map(_._2).lastOption
 
       if (lastMessage.nonEmpty) {
         logInfo(s"Read last message: $lastMessage")
@@ -91,7 +90,7 @@ class KafkaNotifier[A <: AnyRef](jobConf: JobConf, notifierConf: NotifierConf)(i
         offsetRanges,
         LocationStrategies.PreferConsistent
       )
-      lastElementRdd.collect().map { record => readMessage(record.value()) }
+      lastElementRdd.map { record => readMessage(record.value()) }.collect()
     }
   }
 }
