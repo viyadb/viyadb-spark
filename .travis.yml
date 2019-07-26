@@ -3,9 +3,12 @@ language: scala
 jdk:
   - openjdk8
 
+before_script: |
+  echo "MAVEN_OPTS='-Dorg.slf4j.simpleLogger.defaultLogLevel=WARN'" > ~/.mavenrc
+
 script: |
-  mvn -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN -DskipTests=true package
-  mvn -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN scoverage:report
+  mvn -DskipTests=true package
+  mvn scoverage:report
 
 after_success: |
   bash <(curl -s https://codecov.io/bash)
