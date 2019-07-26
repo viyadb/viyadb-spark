@@ -15,12 +15,12 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.KafkaContainer
 
 import scala.collection.JavaConversions._
 
-class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
+class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   private var ss: SparkSession = _
   private var kafka: KafkaContainer = _
@@ -35,7 +35,9 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
     kafka.start()
 
     kafkaBrokers = kafka.getBootstrapServers.replace("PLAINTEXT://", "")
+  }
 
+  before {
     val producerConf = new Properties()
     producerConf.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokers)
     producerConf.put(ProducerConfig.ACKS_CONFIG, "all")
@@ -58,6 +60,12 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
   }
 
   override def afterAll(): Unit = {
+    if (kafka != null) {
+      kafka.stop()
+    }
+  }
+
+  after {
     if (ss != null) {
       ss.stop()
     }
@@ -66,9 +74,6 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll {
     }
     if (consumer != null) {
       consumer.close()
-    }
-    if (kafka != null) {
-      kafka.stop()
     }
   }
 
