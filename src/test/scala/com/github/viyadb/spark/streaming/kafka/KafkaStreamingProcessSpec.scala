@@ -160,6 +160,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
 
       sendEventsToKafka(s"events$suffix", events)
 
+      Thread.sleep(10000L)
       ssc.stop(stopSparkContext = false, stopGracefully = true)
       ssc.awaitTermination()
 
