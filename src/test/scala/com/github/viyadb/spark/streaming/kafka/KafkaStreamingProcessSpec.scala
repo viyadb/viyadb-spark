@@ -136,7 +136,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
         tableConfigs = Seq(tableConf)
       )
 
-      val ssc = new StreamingContext(ss.sparkContext, Seconds(1))
+      val ssc = new StreamingContext(ss.sparkContext, Seconds(5))
 
       StreamingProcess.create(jobConf).start(ssc)
       ssc.start()

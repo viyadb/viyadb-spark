@@ -6,6 +6,6 @@ import com.github.viyadb.spark.processing.{Aggregator, OutputFieldsSelector, Pro
 class StreamingProcessor(tableConf: TableConf) extends ProcessorChain(
   new InputFieldsSelector(tableConf),
   new TimeTruncator(tableConf),
-  new Aggregator(tableConf),
+  Aggregator(tableConf),
   new OutputFieldsSelector(tableConf)
 )

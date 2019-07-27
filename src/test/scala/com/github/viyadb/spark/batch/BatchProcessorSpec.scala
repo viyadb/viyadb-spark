@@ -5,7 +5,8 @@ import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import org.apache.spark.sql.{Row, SparkSession}
+import com.github.viyadb.spark.streaming.parser.Record
+import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
 
 class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
@@ -83,7 +84,8 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       Array("IL") ++ List.tabulate(40)(_ => "2") :+ "1"
     )
     val loader = new MicroBatchLoader(tableConf)
-    val records = loader.createDataFrame(ss.sparkContext.makeRDD[Row](tsvContent.map(loader.parseInputRow(_))))
+    val records = loader.createDataFrame(
+      ss.sparkContext.makeRDD[Record](tsvContent.map(loader.parseInputRow(_))))
 
     val batchProcessor = new BatchProcessor(tableConf)
     val processed = batchProcessor.process(records)
@@ -156,7 +158,8 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       Array("IL", "1") ++ List.tabulate(40)(_ => "2")
     )
     val loader = new MicroBatchLoader(tableConf)
-    val records = loader.createDataFrame(ss.sparkContext.makeRDD[Row](tsvContent.map(loader.parseInputRow(_))))
+    val records = loader.createDataFrame(
+      ss.sparkContext.makeRDD[Record](tsvContent.map(loader.parseInputRow(_))))
 
     val batchProcessor = new BatchProcessor(tableConf)
     val processed = batchProcessor.process(records)
@@ -198,7 +201,8 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       Array("Amdocs", "2015-01-03", "1.01", "1.01", "1.01", "1")
     )
     val loader = new MicroBatchLoader(tableConf)
-    val records = loader.createDataFrame(ss.sparkContext.makeRDD[Row](tsvContent.map(loader.parseInputRow(_))))
+    val records = loader.createDataFrame(
+      ss.sparkContext.makeRDD[Record](tsvContent.map(loader.parseInputRow(_))))
 
     val batchProcessor = new BatchProcessor(tableConf)
     val processed = batchProcessor.process(records)
@@ -222,7 +226,7 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       dimensions = Seq(
         DimensionConf(name = "string", `type` = Some("string")),
         DimensionConf(name = "numeric", `type` = Some("numeric")),
-        DimensionConf(name = "time", `type` = Some("time"), format = Some("%Y-%m-%dT%H:%M:%S%z")),
+        DimensionConf(name = "time", `type` = Some("time")),
         DimensionConf(name = "microtime", `type` = Some("microtime"), format = Some("%Y-%m-%dT%H:%M:%S.%f%z")),
         DimensionConf(name = "byte", `type` = Some("byte")),
         DimensionConf(name = "ubyte", `type` = Some("ubyte")),
@@ -251,11 +255,6 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       batch = BatchConf()
     )
 
-    val jobConf = JobConf(
-      indexer = indexerConf,
-      tableConfigs = Seq(tableConf)
-    )
-
     val tsvContent = Seq(
       Seq("A", 123, "2019-01-05T01:02:03+0000", "2019-01-05T01:02:03.123+0000",
         -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23456, 1).map(_.toString),
@@ -266,7 +265,8 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
     )
 
     val loader = new MicroBatchLoader(tableConf)
-    val records = loader.createDataFrame(ss.sparkContext.makeRDD[Row](tsvContent.map(loader.parseInputRow(_))))
+    val records = loader.createDataFrame(
+      ss.sparkContext.makeRDD[Record](tsvContent.map(loader.parseInputRow)))
 
     val batchProcessor = new BatchProcessor(tableConf)
     val processed = batchProcessor.process(records)

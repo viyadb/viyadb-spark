@@ -2,8 +2,6 @@ package com.github.viyadb.spark.batch
 
 import com.github.viyadb.spark.Configs.TableConf
 import com.github.viyadb.spark.streaming.parser.Record
-import com.github.viyadb.spark.util.TimeUtil
-import com.github.viyadb.spark.util.TimeUtil.TimeFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -28,18 +26,6 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
     microBatchSchema.schema.fields.map(field => inputCols(field.name))
   }
 
-  /**
-    * @return time formatters per field index
-    */
-  protected def getTimeFormats: Array[Option[TimeFormat]] = {
-    microBatchSchema.schema.fields.map { field =>
-      tableConf.dimensions.filter(d => d.name.eq(field.name) && d.isTimeType)
-        .flatMap(_.format)
-        .map(format => TimeUtil.strptime2JavaFormat(format))
-        .headOption
-    }
-  }
-
   protected def parseTime(value: String, fieldIdx: Int): java.sql.Timestamp = {
     microBatchSchema.timeFormats(fieldIdx).map(format => format.parse(value)).getOrElse(
       new java.sql.Timestamp(
@@ -56,7 +42,7 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
     * @param values String field values
     * @return record
     */
-  def parseInputRow(values: Seq[String]): Row = {
+  def parseInputRow(values: Seq[String]): Record = {
     new Record(
       microBatchSchema.indexedSchema.map { case (field, fieldIdx) =>
         val value = values(columnIndices(fieldIdx))
@@ -86,7 +72,7 @@ class MicroBatchLoader(tableConf: TableConf) extends Serializable {
     createDataFrame(rdd)
   }
 
-  def createDataFrame(rdd: RDD[Row]): DataFrame = {
-    SparkSession.builder().getOrCreate().createDataFrame(rdd, microBatchSchema.schema)
+  def createDataFrame(rdd: RDD[Record]): DataFrame = {
+    SparkSession.builder().getOrCreate().createDataFrame(rdd.asInstanceOf[RDD[Row]], microBatchSchema.schema)
   }
 }
