@@ -6,19 +6,19 @@ import java.util.TimeZone
 import com.github.viyadb.spark.batch.{Job => BatchJob}
 import com.github.viyadb.spark.streaming.StreamingTestUtils.TestStreamingProcess
 import com.github.viyadb.spark.streaming.{Job => StreamingJob}
-import com.github.viyadb.spark.util.ConsulClient
+import com.github.viyadb.spark.util.{ConsulClient, DummyStatsDServer}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.StreamingContext
 import org.scalatest.BeforeAndAfterAll
 import org.testcontainers.containers.GenericContainer
-import org.testcontainers.containers.wait.strategy.Wait
 
 import scala.util.Random
 
 class JobSpec extends UnitSpec with BeforeAndAfterAll {
 
   private var consul: GenericContainer[_] = _
+  private var statsdServer: DummyStatsDServer = _
 
   override def beforeAll() {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
@@ -26,12 +26,15 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
     consul = new GenericContainer("consul:latest")
       .withExposedPorts(8500)
     consul.start()
+
+    statsdServer = new DummyStatsDServer(12345)
   }
 
   override def afterAll(): Unit = {
     if (consul != null) {
       consul.stop()
     }
+    statsdServer.clear()
   }
 
   "Streaming and Batch jobs" should "run via main method" in {
@@ -48,6 +51,11 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
            |  "tables":[
            |    "events$suffix"
            |  ],
+           |  "statsd":{
+           |    "host":"localhost",
+           |    "port":12345,
+           |    "prefix":"viyadb"
+           |  },
            |  "deepStorePath":"${tmpDir.getAbsolutePath}/deepStore",
            |  "realTime":{
            |    "windowDuration":"PT1S",
@@ -132,6 +140,14 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
 
       assert(!FileUtils.listFiles(
         new File(s"${tmpDir.getAbsolutePath}/deepStore/batch/events$suffix"), Array("gz"), true).isEmpty)
+
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.realtime.tables.events$suffix.save_time:")))
+      assert(statsdServer.messages.exists(_.equals(s"viyadb.realtime.tables.events$suffix.saved_records:6|c")))
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.realtime.tables.events$suffix.process_time:")))
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.realtime.process_time:")))
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.batch.tables.events$suffix.process_time:")))
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.batch.tables.events$suffix.saved_records:2|c")))
+      assert(statsdServer.messages.exists(_.startsWith(s"viyadb.batch.process_time:")))
 
     } finally {
       FileUtils.deleteDirectory(tmpDir)

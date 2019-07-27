@@ -1,16 +1,13 @@
-package com.github.viyadb.spark.streaming
+package com.github.viyadb.spark.batch
 
 import java.io.File
 import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.UnitSpec
-import com.github.viyadb.spark.batch.BatchProcess
 import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
-
-import scala.util.Random
 
 class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
 

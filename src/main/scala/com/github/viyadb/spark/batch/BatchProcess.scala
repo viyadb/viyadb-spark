@@ -73,11 +73,17 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
     * Starts the batch processing
     */
   def start(spark: SparkSession): Unit = {
+    val startTime = System.currentTimeMillis
+
     unprocessedBatches().map { case (batchId, microBatches, tables) =>
       val tablesInfo = tables.par.map(tableName => (tableName, processTable(tableName, batchId)))
         .seq.toMap
       BatchInfo(id = batchId, tables = tablesInfo, microBatches = microBatches)
     }.foreach(batchInfo => notifier.send(batchInfo.id, batchInfo))
+
+    statsd.foreach(client => {
+      client.recordExecutionTime(s"batch.process_time", System.currentTimeMillis - startTime)
+    })
   }
 }
 

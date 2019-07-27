@@ -6,9 +6,9 @@ import com.github.viyadb.spark.processing.Processor
 import com.github.viyadb.spark.util.{FileSystemUtil, RDDMultipleTextOutputFormat}
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 /**
   * Processes micro-batch table data produced by the streaming processes
@@ -105,8 +105,12 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
     ).getOrElse(df)
 
     df.rdd
-      .mapPartitions(p =>
-        p.map(row => (s"part=${partitions(row.getAs[Int](partColumn))}", outputSchema.toTsvLine(row, 1))))
+      .mapPartitions { partition =>
+        partition.map { row =>
+          recordCountAcc.add(1)
+          (s"part=${partitions(row.getAs[Int](partColumn))}", outputSchema.toTsvLine(row, 1))
+        }
+      }
       .saveAsHadoopFile(targetPath, classOf[String], classOf[String],
         classOf[RDDMultipleTextOutputFormat], classOf[GzipCodec])
 

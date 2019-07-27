@@ -4,6 +4,6 @@ import com.github.viyadb.spark.Configs.TableConf
 import com.github.viyadb.spark.processing.{Aggregator, OutputFieldsSelector, ProcessorChain}
 
 class BatchProcessor(tableConf: TableConf) extends ProcessorChain(
-  new Aggregator(tableConf),
+  Aggregator(tableConf),
   new OutputFieldsSelector(tableConf)
 )

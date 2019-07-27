@@ -1,5 +1,6 @@
 package com.github.viyadb.spark.batch
 
+import java.sql.Timestamp
 import java.util.TimeZone
 
 import com.github.viyadb.spark.Configs._
@@ -212,6 +213,81 @@ class BatchProcessorSpec extends UnitSpec with BeforeAndAfter {
       Seq("IBM", "2015-01-01", 203.42, 203.42, 102.32, 2)
     )
 
+    assert(actual == expected)
+  }
+
+  "BatchProcessor" should "process all dimension types" in {
+    val tableConf = TableConf(
+      name = "foo",
+      dimensions = Seq(
+        DimensionConf(name = "string", `type` = Some("string")),
+        DimensionConf(name = "numeric", `type` = Some("numeric")),
+        DimensionConf(name = "time", `type` = Some("time"), format = Some("%Y-%m-%dT%H:%M:%S%z")),
+        DimensionConf(name = "microtime", `type` = Some("microtime"), format = Some("%Y-%m-%dT%H:%M:%S.%f%z")),
+        DimensionConf(name = "byte", `type` = Some("byte")),
+        DimensionConf(name = "ubyte", `type` = Some("ubyte")),
+        DimensionConf(name = "short", `type` = Some("short")),
+        DimensionConf(name = "ushort", `type` = Some("ushort")),
+        DimensionConf(name = "int", `type` = Some("int")),
+        DimensionConf(name = "uint", `type` = Some("uint")),
+        DimensionConf(name = "long", `type` = Some("long")),
+        DimensionConf(name = "ulong", `type` = Some("ulong")),
+        DimensionConf(name = "float", `type` = Some("float")),
+        DimensionConf(name = "double", `type` = Some("double"))
+      ),
+      metrics = Seq(
+        MetricConf(name = "count", `type` = "count")
+      )
+    )
+
+    val indexerConf = IndexerConf(
+      deepStorePath = "",
+      realTime = RealTimeConf(
+        parseSpec = Some(ParseSpecConf(
+          format = "tsv",
+          columns = Some(Seq("string", "numeric", "time", "microtime", "byte", "ubyte", "short",
+            "ushort", "int", "uint", "long", "ulong", "float", "double"))
+        ))),
+      batch = BatchConf()
+    )
+
+    val jobConf = JobConf(
+      indexer = indexerConf,
+      tableConfigs = Seq(tableConf)
+    )
+
+    val tsvContent = Seq(
+      Seq("A", 123, "2019-01-05T01:02:03+0000", "2019-01-05T01:02:03.123+0000",
+        -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23456, 1).map(_.toString),
+      Seq("A", 123, "2019-01-05T01:02:03+0000", "2019-01-05T01:02:03.123+0000",
+        -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23456, 1).map(_.toString),
+      Seq("A", 123, "2019-01-05T01:02:04+0000", "2019-01-05T01:02:04.123+0000",
+        -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23457, 1).map(_.toString)
+    )
+
+    val loader = new MicroBatchLoader(tableConf)
+    val records = loader.createDataFrame(ss.sparkContext.makeRDD[Row](tsvContent.map(loader.parseInputRow(_))))
+
+    val batchProcessor = new BatchProcessor(tableConf)
+    val processed = batchProcessor.process(records)
+    val actual = processed.rdd.map(row => row.toSeq).collect().toSet
+
+    val expected = Set(
+      Seq("A", 123, new Timestamp(1546650123000L), new Timestamp(1546650123123L),
+        -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23456, 2),
+      Seq("A", 123, new Timestamp(1546650124000L), new Timestamp(1546650124123L),
+        -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23457, 1)
+    )
+
+    val expectedTypes = Seq(
+      classOf[java.lang.String], classOf[java.lang.Integer], classOf[java.sql.Timestamp],
+      classOf[java.sql.Timestamp], classOf[java.lang.Byte], classOf[java.lang.Short],
+      classOf[java.lang.Short], classOf[java.lang.Integer], classOf[java.lang.Integer],
+      classOf[java.lang.Long], classOf[java.lang.Long], classOf[java.lang.Long],
+      classOf[java.lang.Float], classOf[java.lang.Double], classOf[java.lang.Long]
+    )
+
+    assert(actual.map(x => x.map(y => y.getClass)).head == expectedTypes)
     assert(actual == expected)
   }
 }
