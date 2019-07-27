@@ -141,6 +141,7 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
       assert(!FileUtils.listFiles(
         new File(s"${tmpDir.getAbsolutePath}/deepStore/batch/events$suffix"), Array("gz"), true).isEmpty)
 
+      Thread.sleep(1000L)
       assert(statsdServer.messages.exists(_.startsWith(s"viyadb.realtime.tables.events$suffix.save_time:")))
       assert(statsdServer.messages.exists(_.equals(s"viyadb.realtime.tables.events$suffix.saved_records:6|c")))
       assert(statsdServer.messages.exists(_.startsWith(s"viyadb.realtime.tables.events$suffix.process_time:")))

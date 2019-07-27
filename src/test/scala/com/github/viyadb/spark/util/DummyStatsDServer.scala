@@ -32,12 +32,6 @@ class DummyStatsDServer(port: Int) {
     thread.start()
   }
 
-  def waitForMessage(): Unit = {
-    while (messages.isEmpty) {
-      Thread.sleep(50L)
-    }
-  }
-
   def close(): Unit = {
     server.close()
   }
