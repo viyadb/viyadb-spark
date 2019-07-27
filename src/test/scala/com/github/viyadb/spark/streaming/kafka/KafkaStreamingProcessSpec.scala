@@ -15,6 +15,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.joda.time.Period
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.KafkaContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -35,7 +36,6 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
 
     kafka = new KafkaContainer()
     kafka.start()
-    Thread.sleep(10000L)
 
     kafkaBrokers = kafka.getBootstrapServers.replace("PLAINTEXT://", "")
   }
@@ -110,6 +110,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
       val indexerConf = IndexerConf(
         deepStorePath = tmpDir.getAbsolutePath,
         realTime = RealTimeConf(
+          windowDuration = Some(Period.seconds(10)),
           kafkaSource = Some(KafkaSourceConf(
             topics = Seq(s"events$suffix"),
             brokers = Seq(kafkaBrokers)
