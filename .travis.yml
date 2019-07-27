@@ -7,7 +7,7 @@ before_script: |
   echo "MAVEN_OPTS='-Dorg.slf4j.simpleLogger.defaultLogLevel=WARN'" > ~/.mavenrc
 
 script: |
-  mvn -DskipTests=true package
+  mvn -DskipTests=true clean package
   mvn scoverage:report
 
 after_success: |
