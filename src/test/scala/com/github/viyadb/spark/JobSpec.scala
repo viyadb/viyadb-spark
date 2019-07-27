@@ -1,18 +1,19 @@
-package com.github.viyadb.spark.streaming
+package com.github.viyadb.spark
 
 import java.io.File
 import java.util.TimeZone
 
-import com.github.viyadb.spark.UnitSpec
+import com.github.viyadb.spark.batch.{Job => BatchJob}
 import com.github.viyadb.spark.streaming.StreamingTestUtils.TestStreamingProcess
+import com.github.viyadb.spark.streaming.{Job => StreamingJob}
 import com.github.viyadb.spark.util.ConsulClient
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.StreamingContext
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfterAll
 import org.testcontainers.containers.GenericContainer
 
-class JobSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
+class JobSpec extends UnitSpec with BeforeAndAfterAll {
 
   private var consul: GenericContainer[_] = _
 
@@ -56,10 +57,22 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
            |    "notifier":{
            |      "type":"file",
            |      "channel":"${tmpDir.getAbsolutePath}",
-           |      "queue":"notifications"
+           |      "queue":"rt-notifications"
            |    }
            |  },
-           |  "batch":{}
+           |  "batch":{
+           |    "partitioning":{
+           |      "columns":[
+           |        "company"
+           |      ],
+           |      "partitions":3
+           |    },
+           |    "notifier":{
+           |      "type":"file",
+           |      "channel":"${tmpDir.getAbsolutePath}",
+           |      "queue":"b-notifications"
+           |    }
+           |  }
            |}
            |""".stripMargin)
 
@@ -80,7 +93,7 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
           |}
           |""".stripMargin)
 
-      val job = new Job() {
+      val streamingJob = new StreamingJob() {
         override protected def sparkConf(): SparkConf = {
           super.sparkConf().setMaster("local[*]")
         }
@@ -91,7 +104,7 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
           ssc.awaitTermination()
         }
       }
-      job.run(Array(
+      streamingJob.run(Array(
         "--consul-host", consul.getContainerIpAddress,
         "--consul-port", consul.getFirstMappedPort.toString,
         "--consul-prefix", "viyadb",
@@ -100,6 +113,21 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
 
       assert(!FileUtils.listFiles(
         new File(s"${tmpDir.getAbsolutePath}/deepStore/realtime/events"), Array("gz"), true).isEmpty)
+
+      val batchJob = new BatchJob() {
+        override protected def sparkConf(): SparkConf = {
+          super.sparkConf().setMaster("local[*]")
+        }
+      }
+      batchJob.run(Array(
+        "--consul-host", consul.getContainerIpAddress,
+        "--consul-port", consul.getFirstMappedPort.toString,
+        "--consul-prefix", "viyadb",
+        "--indexer-id", "main"
+      ))
+
+      assert(!FileUtils.listFiles(
+        new File(s"${tmpDir.getAbsolutePath}/deepStore/batch/events"), Array("gz"), true).isEmpty)
 
     } finally {
       FileUtils.deleteDirectory(tmpDir)
