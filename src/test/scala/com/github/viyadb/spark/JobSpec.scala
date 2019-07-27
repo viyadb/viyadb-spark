@@ -12,6 +12,9 @@ import org.apache.spark.SparkConf
 import org.apache.spark.streaming.StreamingContext
 import org.scalatest.BeforeAndAfterAll
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
+
+import scala.util.Random
 
 class JobSpec extends UnitSpec with BeforeAndAfterAll {
 
@@ -31,18 +34,19 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
     }
   }
 
-  "Streaming Job" should "run" in {
+  "Streaming and Batch jobs" should "run via main method" in {
     val consulClient = new ConsulClient(consul.getContainerIpAddress, consul.getFirstMappedPort)
 
     val tmpDir = File.createTempFile("viyadb-spark-test", null)
     tmpDir.delete()
 
     try {
-      consulClient.kvPut("/viyadb/indexers/main/config",
+      val suffix = Math.abs(Random.nextInt())
+      consulClient.kvPut(s"/viyadb/indexers/indexer$suffix/config",
         s"""
            |{
            |  "tables":[
-           |    "events"
+           |    "events$suffix"
            |  ],
            |  "deepStorePath":"${tmpDir.getAbsolutePath}/deepStore",
            |  "realTime":{
@@ -57,7 +61,7 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
            |    "notifier":{
            |      "type":"file",
            |      "channel":"${tmpDir.getAbsolutePath}",
-           |      "queue":"rt-notifications"
+           |      "queue":"rt-notifications$suffix"
            |    }
            |  },
            |  "batch":{
@@ -70,28 +74,28 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
            |    "notifier":{
            |      "type":"file",
            |      "channel":"${tmpDir.getAbsolutePath}",
-           |      "queue":"b-notifications"
+           |      "queue":"b-notifications$suffix"
            |    }
            |  }
            |}
            |""".stripMargin)
 
-      consulClient.kvPut("/viyadb/tables/events/config",
-        """
-          |{
-          |  "name":"events",
-          |  "dimensions":[
-          |     {"name":"company"},
-          |     {"name":"timestamp","type":"time","format":"%Y-%m-%d"}
-          |   ],
-          |   "metrics":[
-          |     {"name":"stock_price_sum","field":"stock_price","type":"double_sum"},
-          |     {"name":"stock_price_avg","field":"stock_price","type":"double_avg"},
-          |     {"name":"stock_price_max","field":"stock_price","type":"double_max"},
-          |     {"name":"count","type":"count"}
-          |   ]
-          |}
-          |""".stripMargin)
+      consulClient.kvPut(s"/viyadb/tables/events$suffix/config",
+        s"""
+           |{
+           |  "name":"events$suffix",
+           |  "dimensions":[
+           |     {"name":"company"},
+           |     {"name":"timestamp","type":"time","format":"%Y-%m-%d"}
+           |   ],
+           |   "metrics":[
+           |     {"name":"stock_price_sum","field":"stock_price","type":"double_sum"},
+           |     {"name":"stock_price_avg","field":"stock_price","type":"double_avg"},
+           |     {"name":"stock_price_max","field":"stock_price","type":"double_max"},
+           |     {"name":"count","type":"count"}
+           |   ]
+           |}
+           |""".stripMargin)
 
       val streamingJob = new StreamingJob() {
         override protected def sparkConf(): SparkConf = {
@@ -108,11 +112,11 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
         "--consul-host", consul.getContainerIpAddress,
         "--consul-port", consul.getFirstMappedPort.toString,
         "--consul-prefix", "viyadb",
-        "--indexer-id", "main"
+        "--indexer-id", s"indexer$suffix"
       ))
 
       assert(!FileUtils.listFiles(
-        new File(s"${tmpDir.getAbsolutePath}/deepStore/realtime/events"), Array("gz"), true).isEmpty)
+        new File(s"${tmpDir.getAbsolutePath}/deepStore/realtime/events$suffix"), Array("gz"), true).isEmpty)
 
       val batchJob = new BatchJob() {
         override protected def sparkConf(): SparkConf = {
@@ -123,11 +127,11 @@ class JobSpec extends UnitSpec with BeforeAndAfterAll {
         "--consul-host", consul.getContainerIpAddress,
         "--consul-port", consul.getFirstMappedPort.toString,
         "--consul-prefix", "viyadb",
-        "--indexer-id", "main"
+        "--indexer-id", s"indexer$suffix"
       ))
 
       assert(!FileUtils.listFiles(
-        new File(s"${tmpDir.getAbsolutePath}/deepStore/batch/events"), Array("gz"), true).isEmpty)
+        new File(s"${tmpDir.getAbsolutePath}/deepStore/batch/events$suffix"), Array("gz"), true).isEmpty)
 
     } finally {
       FileUtils.deleteDirectory(tmpDir)

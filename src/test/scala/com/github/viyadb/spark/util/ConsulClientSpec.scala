@@ -5,6 +5,7 @@ import java.util.TimeZone
 import com.github.viyadb.spark.UnitSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
 
 class ConsulClientSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
 

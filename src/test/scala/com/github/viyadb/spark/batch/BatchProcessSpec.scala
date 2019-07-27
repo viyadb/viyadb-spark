@@ -10,6 +10,8 @@ import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
 
+import scala.util.Random
+
 class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
 
   private var ss: SparkSession = _
@@ -68,7 +70,7 @@ class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
           notifier = NotifierConf(
             `type` = "file",
             channel = tmpDir.getAbsolutePath,
-            queue = "batch-notifications"
+            queue = s"b-notifications"
           ),
           partitioning = Some(PartitionConf(
             columns = Seq("company"),
@@ -84,7 +86,7 @@ class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
 
       new BatchProcess(jobConf).start(ss)
 
-      val actual = ss.sparkContext.textFile(jobConf.indexer.batchPrefix + "/foo/*/*/*.gz")
+      val actual = ss.sparkContext.textFile(s"${jobConf.indexer.batchPrefix}/foo/*/*/*.gz")
         .collect().sorted.mkString("\n")
 
       val expected = Array(

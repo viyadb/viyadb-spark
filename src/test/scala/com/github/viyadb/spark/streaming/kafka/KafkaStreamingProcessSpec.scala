@@ -17,8 +17,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.testcontainers.containers.KafkaContainer
+import org.testcontainers.containers.wait.strategy.Wait
 
 import scala.collection.JavaConversions._
+import scala.util.Random
 
 class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with BeforeAndAfter {
 
@@ -33,8 +35,15 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
 
     kafka = new KafkaContainer()
     kafka.start()
+    Thread.sleep(10000L)
 
     kafkaBrokers = kafka.getBootstrapServers.replace("PLAINTEXT://", "")
+  }
+
+  override def afterAll(): Unit = {
+    if (kafka != null) {
+      kafka.stop()
+    }
   }
 
   before {
@@ -57,12 +66,6 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
     ss = SparkSession.builder().appName(getClass.getName)
       .master("local[*]")
       .getOrCreate()
-  }
-
-  override def afterAll(): Unit = {
-    if (kafka != null) {
-      kafka.stop()
-    }
   }
 
   after {
@@ -89,8 +92,9 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
     tmpDir.delete()
 
     try {
+      val suffix = Math.abs(Random.nextInt())
       val tableConf = TableConf(
-        name = "events1",
+        name = s"events$suffix",
         dimensions = Seq(
           DimensionConf(name = "company"),
           DimensionConf(name = "timestamp", `type` = Some("time"), format = Some("%Y-%m-%d"))
@@ -107,7 +111,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
         deepStorePath = tmpDir.getAbsolutePath,
         realTime = RealTimeConf(
           kafkaSource = Some(KafkaSourceConf(
-            topics = Seq("events1"),
+            topics = Seq(s"events$suffix"),
             brokers = Seq(kafkaBrokers)
           )),
           parseSpec = Some(ParseSpecConf(
@@ -120,7 +124,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
           notifier = NotifierConf(
             `type` = "kafka",
             channel = kafkaBrokers,
-            queue = "notifications1"
+            queue = s"notifications$suffix"
           )
         ),
         batch = BatchConf()
@@ -153,12 +157,12 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
            |}""".stripMargin
       }
 
-      sendEventsToKafka("events1", events)
+      sendEventsToKafka(s"events$suffix", events)
 
       ssc.stop(stopSparkContext = false, stopGracefully = true)
       ssc.awaitTermination()
 
-      val actual = ss.sparkContext.textFile(jobConf.indexer.realtimePrefix + "/events1/*/*/*.gz")
+      val actual = ss.sparkContext.textFile(s"${jobConf.indexer.realtimePrefix}/events$suffix/*/*/*.gz")
         .collect().sorted.mkString("\n")
 
       val expected = Array(
@@ -173,7 +177,7 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
 
       assert(actual == expected)
 
-      val partitions = Seq(new TopicPartition("notifications1", 0))
+      val partitions = Seq(new TopicPartition(s"notifications$suffix", 0))
       consumer.assign(partitions)
       consumer.seekToBeginning(partitions)
       val records = consumer.poll(Duration.ofSeconds(1))
@@ -185,13 +189,14 @@ class KafkaStreamingProcessSpec extends UnitSpec with BeforeAndAfterAll with Bef
   }
 
   "KafkaNotifier" should "support sending and receiving messages" in {
+    val suffix = Math.abs(Random.nextInt())
     val indexerConf = IndexerConf(
       deepStorePath = "",
       realTime = RealTimeConf(
         notifier = NotifierConf(
           `type` = "kafka",
           channel = kafkaBrokers,
-          queue = "notifications2"
+          queue = s"notifications$suffix"
         )
       ),
       batch = BatchConf()
