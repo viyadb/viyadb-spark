@@ -348,14 +348,15 @@ class StreamingProcessorSpec extends UnitSpec with BeforeAndAfter {
         tsvContent.map(tsv => recordParser.parseRecord("", tsv).get)))
 
     val processed = streamingProcessor.process(records)
-    val actual = processed.rdd.map(row => row.toSeq).collect().toSet
 
+    val actual = processed.rdd.map(row => row.toSeq).collect().toSet
     val expected = Set(
       Seq("A", 123, new Timestamp(1546650123000L), new Timestamp(1546650123123L),
         -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23456, 2),
       Seq("A", 123, new Timestamp(1546650124000L), new Timestamp(1546650124123L),
         -0xa, 0xa, 5, 5, -120, 120, -123456, 123456, 1.23456F, 1.23457, 1)
     )
+    assert(actual == expected)
 
     val expectedTypes = Seq(
       classOf[java.lang.String], classOf[java.lang.Integer], classOf[java.sql.Timestamp],
@@ -364,8 +365,6 @@ class StreamingProcessorSpec extends UnitSpec with BeforeAndAfter {
       classOf[java.lang.Long], classOf[java.lang.Long], classOf[java.lang.Long],
       classOf[java.lang.Float], classOf[java.lang.Double], classOf[java.lang.Long]
     )
-
     assert(actual.map(x => x.map(y => y.getClass)).head == expectedTypes)
-    assert(actual == expected)
   }
 }
