@@ -5,7 +5,7 @@ Data processing backend (indexer) for ViyaDB based on Spark.
 
 [![Build Status](https://travis-ci.org/viyadb/viyadb-spark.png)](https://travis-ci.org/viyadb/viyadb-spark)
 
-[![codecov.io](https://codecov.io/github/viyadb/viyadb-spark/coverage.svg?branch=master)](https://codecov.io/github/viyadb/viyadb-spark?branch=master)
+[![Coverage](https://codecov.io/github/viyadb/viyadb-spark/coverage.svg?branch=master)](https://codecov.io/github/viyadb/viyadb-spark?branch=master)
 
 There are two processes defined in this project:
 

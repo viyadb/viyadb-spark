@@ -4,7 +4,7 @@ import com.esotericsoftware.kryo.Kryo
 import com.github.viyadb.spark.Configs._
 import com.github.viyadb.spark.notifications.{FileNotifier, KafkaNotifier, Notifier}
 import com.github.viyadb.spark.processing.{Aggregator, Processor, ProcessorChain}
-import com.github.viyadb.spark.streaming.PathTracker
+import com.github.viyadb.spark.streaming.{PathTracker, StreamingProcess}
 import com.github.viyadb.spark.util.ConsulClient
 import org.joda.time.{DurationFieldType, Interval, Period, PeriodType}
 
@@ -32,6 +32,12 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[Notifier[_]])
     kryo.register(classOf[KafkaNotifier[_]])
     kryo.register(classOf[FileNotifier[_]])
+    kryo.register(classOf[StreamingProcess.MicroBatchInfo])
+    kryo.register(classOf[StreamingProcess.MicroBatchOffsets])
+    kryo.register(classOf[StreamingProcess.MicroBatchTableInfo])
+    kryo.register(classOf[Array[StreamingProcess.MicroBatchInfo]])
+    kryo.register(classOf[BatchProcess.BatchInfo])
+    kryo.register(classOf[BatchProcess.BatchTableInfo])
 
     kryo.register(classOf[Period])
     kryo.register(classOf[PeriodType])

@@ -44,6 +44,10 @@ class KryoRegistrator extends org.apache.spark.serializer.KryoRegistrator {
     kryo.register(classOf[TsvRecordParser])
     kryo.register(classOf[PathTracker])
     kryo.register(classOf[Array[Receiver[_]]])
+    kryo.register(classOf[StreamingProcess.MicroBatchInfo])
+    kryo.register(classOf[StreamingProcess.MicroBatchOffsets])
+    kryo.register(classOf[StreamingProcess.MicroBatchTableInfo])
+    kryo.register(classOf[Array[StreamingProcess.MicroBatchInfo]])
 
     kryo.register(classOf[Period])
     kryo.register(classOf[PeriodType])

@@ -40,7 +40,15 @@ class BatchProcess(jobConf: JobConf) extends Serializable with Logging {
     }
 
     def isUnprocessedBatch(batchId: Long): Boolean = {
-      batchId > lastBatch && batchId != currentBatch
+      if (batchId < lastBatch) {
+        logInfo(s"Skipping processed batch: $batchId")
+        false
+      } else if (batchId == currentBatch) {
+        logInfo(s"Skipping current batch: $batchId")
+        false
+      } else {
+        true
+      }
     }
 
     // Read all notifications send by the real-time process
