@@ -26,9 +26,11 @@ class TableBatchProcess(indexerConf: IndexerConf, tableConf: TableConf) extends 
   private val recordCountAcc = SparkSession.builder().getOrCreate().sparkContext
     .longAccumulator(s"${tableConf.name} record count")
 
-  private def previousBatch(ts: Long): Option[Long] = {
+  private def previousBatch(currentBatchId: Long): Option[Long] = {
     val periodMillis = indexerConf.batch.batchDurationInMillis
-    Some(Math.floor(ts - 1 / periodMillis).toLong * periodMillis)
+    val previousBatchId = Math.floor((currentBatchId - 1) / periodMillis).toLong * periodMillis
+    logInfo(s"Previous to batch ID $currentBatchId is: $previousBatchId")
+    Some(previousBatchId)
       .filter(ts => FileSystemUtil.exists(s"${indexerConf.batchPrefix}/${tableConf.name}/dt=$ts"))
   }
 
