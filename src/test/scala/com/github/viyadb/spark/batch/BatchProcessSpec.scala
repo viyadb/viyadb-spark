@@ -83,7 +83,9 @@ class BatchProcessSpec extends UnitSpec with BeforeAndAfter {
 
       new BatchProcess(jobConf).start(ss)
 
-      val actual = ss.sparkContext.textFile(s"${jobConf.indexer.batchPrefix}/foo/*/*/*.gz")
+      val lastFolder = new File(s"${jobConf.indexer.batchPrefix}/foo").list().filter(_.contains("dt=")).max
+
+      val actual = ss.sparkContext.textFile(s"${jobConf.indexer.batchPrefix}/foo/$lastFolder/*/*.gz")
         .collect().sorted.mkString("\n")
 
       val expected = Array(
